@@ -46,8 +46,12 @@ func main () {
     // 取得した絶対パスからディレクトリ名のみを取得
     absolutePath = filepath.Dir(initializeFileName);
     // Globで該当ファイルをすべて取得
-    fileList, _ := filepath.Glob(absolutePath + "/" + "__php__main__*");
-
+    var fileList []string = []string{};
+    fileList, myError = filepath.Glob(absolutePath + "/" + "__php__main__*");
+    if (myError != nil) {
+        format(myError.Error());
+        os.Exit(255);
+    }
     for _, value := range fileList {
         err = os.Remove (value);
         if (err != nil) {
