@@ -21,7 +21,7 @@ func main () {
     var err error;
     var tentativeFile string = "";
     // 文字列をバイト配列に
-    var initializer string = "<?php ";
+    var initializer string = "<?php " + "\n";
 
 
     // (1) 一時ファイル作成，且つ前回起動時のゴミファイルを削除する
@@ -62,11 +62,11 @@ func main () {
 
     // ダミー実行ポインタ
     ff , err = ioutil.TempFile("", "__php__main__");
-    ff.Chmod(os.ModePerm);
     if (err != nil) {
-        fmt.Println(err.Error());
+        format(err.Error());
         os.Exit(1);
     }
+    ff.Chmod(os.ModePerm);
     _, err = ff.WriteAt([]byte(initializer), 0);
     if (err != nil) {
         format(err.Error());
