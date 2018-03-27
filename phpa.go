@@ -6,7 +6,7 @@ import exe "os/exec"
 import "io/ioutil"
 import _ "io"
 import _ "reflect"
-import _ "strconv"
+import "strconv"
 import "bufio"
 import "path/filepath"
 import "strings"
@@ -40,33 +40,38 @@ func main() {
 	// ファイルポインタから当該のファイルパスを取得(rootからの絶対パスを取得)
 	initializeFileName = initialize.Name()
 	// 念の為Absメソッドで絶対パスを取得
-	initializeFileName, _ = filepath.Abs(initializeFileName)
+	initializeFileName, myError = filepath.Abs(initializeFileName)
+	if myError != nil {
+		format(myError.Error())
+		os.Exit(255)
+	}
 	// 取得した絶対パスからディレクトリ名のみを取得
 	absolutePath = filepath.Dir(initializeFileName)
 	// Globで該当ファイルをすべて取得
-	var fileList []string = []string{}
+	var fileList []string = make([]string, 0)
 	fileList, myError = filepath.Glob(absolutePath + "/" + "__php__main__*")
 	if myError != nil {
 		format(myError.Error())
 		os.Exit(255)
 	}
-	for _, value := range fileList {
-		err = os.Remove(value)
-		if err != nil {
-			format(err.Error())
-			format("ファイル名=> [" + value + "] の削除に失敗しました。")
+	for key, value := range fileList {
+		myError = os.Remove(value)
+		if myError != nil {
+			k := strconv.Itoa(key)
+			format(myError.Error())
+			format("インデックスキー => [" + k + "]" + "ファイル名=> [" + value + "] の削除に失敗しました。")
 		}
 	}
 
 	// ダミー実行ポインタ
-	ff, err = ioutil.TempFile("", "__php__main__")
-	if err != nil {
-		format(err.Error())
+	ff, myError = ioutil.TempFile("", "__php__main__")
+	if myError != nil {
+		format(myError.Error())
 		os.Exit(1)
 	}
 	ff.Chmod(os.ModePerm)
-	_, err = ff.WriteAt([]byte(initializer), 0)
-	if err != nil {
+	_, myError = ff.WriteAt([]byte(initializer), 0)
+	if myError != nil {
 		format(err.Error())
 		os.Exit(1)
 	}
@@ -78,36 +83,36 @@ func main() {
 	var ss int = 0
 	var multiple int = 0
 	var multipleTemp int = 0
-	var backup []byte
-	var e error = nil
+	var backup []byte = make([]byte, 0)
+	var currentDir string
 
 	// 末尾はバックスラッシュの場合，以降再びバックスラッシュで終わるまで
 	// スクリプトを実行しない
 	var reg *regexp.Regexp = nil
-	reg, e = regexp.Compile("\\\\[ ]*$")
+	reg, myError = regexp.Compile("\\\\[ ]*$")
 	// 正規表現実行箇所エラーハンドリング
-	if e != nil {
-		format(e.Error())
+	if myError != nil {
+		format(myError.Error())
 		format("<正規表現:RunTime Error>")
 		os.Exit(255)
 	}
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
-	saveRegex, e = regexp.Compile("[ ]*save[ ]*$")
-	if e != nil {
-		format(e.Error())
+	saveRegex, myError = regexp.Compile("[ ]*save[ ]*$")
+	if myError != nil {
+		format(myError.Error())
 		format("<正規表現:Runtime Error>")
 		os.Exit(255)
 	}
-
-	scanner := bufio.NewScanner(os.Stdin)
+	var scanner *bufio.Scanner = new(bufio.Scanner)
+	scanner = bufio.NewScanner(os.Stdin)
 	for {
 		// ループ開始時に正常動作するソースのバックアップを取得
 		ff.Seek(0, 0)
-		backup, e = ioutil.ReadAll(ff)
-		if e != nil {
+		backup, myError = ioutil.ReadAll(ff)
+		if myError != nil {
 			format("バックアップに失敗!")
-			format(e.Error())
+			format(myError.Error())
 			break
 		}
 
@@ -121,7 +126,7 @@ func main() {
 		line = scanner.Text()
 
 		if line == "del" {
-			ff, e = deleteFile(ff, "<?php ")
+			ff, myError = deleteFile(ff, "<?php ")
 			line = ""
 			input = ""
 			count = 0
@@ -131,21 +136,21 @@ func main() {
 			   [save]コマンドが入力された場合，その時点まで入力されたスクリプトを
 			   カレントディレクトリに保存する
 			*/
-			currentDir, e := os.Getwd()
-			if e != nil {
+			currentDir, myError = os.Getwd()
+			if myError != nil {
 				format("<カレントディレクトリの取得に失敗>")
-				format(e.Error())
+				format(myError.Error())
 				break
 			}
-			currentDir, e = filepath.Abs(currentDir)
-			if e != nil {
-				format(e.Error())
+			currentDir, myError = filepath.Abs(currentDir)
+			if myError != nil {
+				format(myError.Error())
 				break
 			}
 			var saveFp *os.File = new(os.File)
-			saveFp, e = ioutil.TempFile(currentDir, "save")
-			if e != nil {
-				format(e.Error())
+			saveFp, myError = ioutil.TempFile(currentDir, "save")
+			if myError != nil {
+				format(myError.Error())
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
@@ -190,18 +195,18 @@ func main() {
 		line = string(reg.ReplaceAll([]byte(line), []byte("")))
 		input += line + "\n"
 		if multiple == 0 {
-			ss, err = ff.Write([]byte(input))
-			if err != nil {
+			ss, myError = ff.Write([]byte(input))
+			if myError != nil {
 				format("<ファイルポインタへの書き込み失敗>")
-				format("=>" + err.Error())
+				format("=>" + myError.Error())
 				continue
 			}
 			if ss > 0 {
 				input = ""
 				line = ""
-				count, err = tempFunction(ff, tentativeFile, count, backup)
+				count, myError = tempFunction(ff, tentativeFile, count, backup)
 				if err != nil {
-					format(err.Error())
+					format(myError.Error())
 					continue
 				}
 			}
