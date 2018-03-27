@@ -1,16 +1,22 @@
 package main
 
-import "fmt"
-import "os"
-import exe "os/exec"
-import "io/ioutil"
-import _ "io"
-import _ "reflect"
-import "strconv"
-import "bufio"
-import "path/filepath"
-import "strings"
-import "regexp"
+import (
+	"fmt"
+	"os"
+	"runtime"
+
+	"io/ioutil"
+	exe "os/exec"
+
+	_ "io"
+
+	"bufio"
+	"path/filepath"
+	_ "reflect"
+	"regexp"
+	"strconv"
+	"strings"
+)
 
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
@@ -107,6 +113,7 @@ func main() {
 	var scanner *bufio.Scanner = new(bufio.Scanner)
 	scanner = bufio.NewScanner(os.Stdin)
 	for {
+		runtime.GC()
 		// ループ開始時に正常動作するソースのバックアップを取得
 		ff.Seek(0, 0)
 		backup, myError = ioutil.ReadAll(ff)
@@ -241,6 +248,8 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset i
 	}
 	temporaryFp.Write([]byte("echo(PHP_EOL);"))
 	beforeOffset = len(split)
+	split = nil
+	runtime.GC()
 	return beforeOffset, e
 }
 
