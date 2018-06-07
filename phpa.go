@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	_ "reflect"
 	"regexp"
-	"strconv"
+	_ "strconv"
 	"strings"
 )
 
@@ -33,7 +33,7 @@ func main() {
 	// (1) 一時ファイル作成，且つ前回起動時のゴミファイルを削除する
 	var initialize *os.File = nil
 	var initializeFileName string = ""
-	var absolutePath string = ""
+	//var absolutePath string = ""
 	var myError error = nil
 	// ※戻り値 => *os.File, error を返却
 	initialize, myError = ioutil.TempFile("", "__php__main__")
@@ -52,22 +52,24 @@ func main() {
 		os.Exit(255)
 	}
 	// 取得した絶対パスからディレクトリ名のみを取得
-	absolutePath = filepath.Dir(initializeFileName)
+	//absolutePath = filepath.Dir(initializeFileName)
 	// Globで該当ファイルをすべて取得
-	var fileList []string = make([]string, 0)
-	fileList, myError = filepath.Glob(absolutePath + "/" + "__php__main__*")
-	if myError != nil {
-		format(myError.Error())
-		os.Exit(255)
-	}
-	for key, value := range fileList {
-		myError = os.Remove(value)
-		if myError != nil {
-			k := strconv.Itoa(key)
-			format(myError.Error())
-			format("インデックスキー => [" + k + "]" + "ファイル名=> [" + value + "] の削除に失敗しました。")
-		}
-	}
+	/*
+	   var fileList []string = make([]string, 0)
+	   fileList, myError = filepath.Glob(absolutePath + "/" + "__php__main__*")
+	   if myError != nil {
+	       format(myError.Error())
+	       os.Exit(255)
+	   }
+	   for key, value := range fileList {
+	       myError = os.Remove(value)
+	       if myError != nil {
+	           k := strconv.Itoa(key)
+	           format(myError.Error())
+	           format("インデックスキー => [" + k + "]" + "ファイル名=> [" + value + "] の削除に失敗しました。")
+	       }
+	   }
+	*/
 
 	// ダミー実行ポインタ
 	ff, myError = ioutil.TempFile("", "__php__main__")
