@@ -2,25 +2,21 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	exe "os/exec"
 	"runtime"
 
-	"io/ioutil"
-	exe "os/exec"
-
-	_ "io"
-
 	"bufio"
+	_ "io"
 	"path/filepath"
 	_ "reflect"
 	"regexp"
 	_ "strconv"
-	"strings"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
-var output []byte = make([]byte, 0)
 var split []string = make([]string, 0)
 
 func main() {
@@ -229,8 +225,10 @@ func main() {
 	}
 }
 func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset int, temporaryBackup []byte) (int, error) {
-	var k int = 0
+	runtime.GC()
+	var output []byte = make([]byte, 0)
 	var e error = new(MyError)
+	var index *int = new(int)
 	// バックグラウンドでPHPをコマンドラインで実行
 	output, e = exe.Command("php", temporaryFilePath).Output()
 	// stdinから読み出したスクリプトが失敗した場合
@@ -241,19 +239,13 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset i
 		temporaryFp.WriteAt(temporaryBackup, 0)
 		return beforeOffset, e
 	}
-	split = strings.Split(string(output), "\n")
-	for k = beforeOffset; k < len(split); k++ {
-		myPrint("    ")
-		format(split[k])
-		split[k] = ""
-		runtime.GC()
-	}
-	temporaryFp.Write([]byte("echo(PHP_EOL);"))
-	beforeOffset = len(split)
-	split = nil
+	output = output[beforeOffset:]
+	*index = len(output) + beforeOffset
+	format(string(output))
 	output = nil
+	temporaryFp.Write([]byte("echo(PHP_EOL);"))
 	runtime.GC()
-	return beforeOffset, e
+	return *index, e
 }
 
 // 関数内で自作エラーオブジェクトを生成
