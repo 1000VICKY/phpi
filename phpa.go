@@ -1,17 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	_ "io"
 	"io/ioutil"
 	"os"
 	exe "os/exec"
-	"runtime"
-
-	"bufio"
-	_ "io"
 	"path/filepath"
 	_ "reflect"
 	"regexp"
+	"runtime"
+	"runtime/debug"
 	_ "strconv"
 )
 
@@ -224,11 +224,13 @@ func main() {
 		}
 	}
 }
+
+var output []byte = make([]byte, 0)
+
 func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset int, temporaryBackup []byte) (int, error) {
-	runtime.GC()
-	var output []byte = make([]byte, 0)
 	var e error = new(MyError)
 	var index *int = new(int)
+	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
 	output, e = exe.Command("php", temporaryFilePath).Output()
 	// stdinから読み出したスクリプトが失敗した場合
@@ -245,6 +247,8 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset i
 	output = nil
 	temporaryFp.Write([]byte("echo(PHP_EOL);"))
 	runtime.GC()
+	// プログラムが確保したメモリを強制的にOSへ返却
+	debug.FreeOSMemory()
 	return *index, e
 }
 
