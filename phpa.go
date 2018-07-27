@@ -9,30 +9,49 @@ import (
 	exe "os/exec"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	_ "reflect"
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	_ "strconv"
+	"time"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
 var p func(...interface{}) (int, error) = fmt.Print
 var split []string = make([]string, 0)
 
-func main() {
+func __f() {
 	c := make(chan os.Signal, 1)
+	format(reflect.TypeOf(c))
 	// それを登録
+	//signal.Ignore(syscall.SIGINT)
 	signal.Notify(c, os.Interrupt)
 	// chanからの通知を受けるgoroutineを起動
-	go func() {
-		for sig := range c {
-			fmt.Println("シグナル来た", sig)
-			// SIGINTをchanで吸収しちゃってるので、
-			// 明示的にExitする必要がある。
-			//os.Exit(130)
-		}
-	}()
+
+	for sig := range c {
+		fmt.Println("シグナル来た", sig)
+		close(c)
+		break
+		// SIGINTをchanで吸収しちゃってるので、
+		// 明示的にExitする必要がある。
+		//os.Exit(130)
+	}
+	go __f()
+}
+
+func LetsClean() {
+	for {
+		debug.FreeOSMemory()
+		time.Sleep(2 * time.Second)
+		format("==>")
+	}
+}
+func main() {
+
+	go __f()
+	go LetsClean()
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
