@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	exe "os/exec"
+	"os/signal"
 	"path/filepath"
 	_ "reflect"
 	"regexp"
@@ -16,10 +17,22 @@ import (
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
-var myPrint func(...interface{}) (int, error) = fmt.Print
+var p func(...interface{}) (int, error) = fmt.Print
 var split []string = make([]string, 0)
 
 func main() {
+	c := make(chan os.Signal, 1)
+	// それを登録
+	signal.Notify(c, os.Interrupt)
+	// chanからの通知を受けるgoroutineを起動
+	go func() {
+		for sig := range c {
+			fmt.Println("シグナル来た", sig)
+			// SIGINTをchanで吸収しちゃってるので、
+			// 明示的にExitする必要がある。
+			//os.Exit(130)
+		}
+	}()
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
@@ -125,9 +138,9 @@ func main() {
 
 		ff.WriteAt(backup, 0)
 		if multiple == 1 {
-			myPrint("... ")
+			p("... ")
 		} else {
-			myPrint(">>> ")
+			p(">>> ")
 		}
 		scanner.Scan()
 		*line = scanner.Text()
