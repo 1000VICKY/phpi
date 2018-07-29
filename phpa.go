@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	_ "strconv"
+	"strings"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
@@ -23,7 +24,8 @@ func main() {
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
-	var line *string = new(string)
+	var line *string
+	line = new(string)
 	var ff *os.File
 	var err error
 	var tentativeFile *string = new(string)
@@ -49,25 +51,6 @@ func main() {
 		format(myError.Error())
 		os.Exit(255)
 	}
-	// 取得した絶対パスからディレクトリ名のみを取得
-	//absolutePath = filepath.Dir(initializeFileName)
-	// Globで該当ファイルをすべて取得
-	/*
-	   var fileList []string = make([]string, 0)
-	   fileList, myError = filepath.Glob(absolutePath + "/" + "__php__main__*")
-	   if myError != nil {
-	       format(myError.Error())
-	       os.Exit(255)
-	   }
-	   for key, value := range fileList {
-	       myError = os.Remove(value)
-	       if myError != nil {
-	           k := strconv.Itoa(key)
-	           format(myError.Error())
-	           format("インデックスキー => [" + k + "]" + "ファイル名=> [" + value + "] の削除に失敗しました。")
-	       }
-	   }
-	*/
 
 	// ダミー実行ポインタ
 	ff, myError = ioutil.TempFile("", "__php__main__")
@@ -230,6 +213,7 @@ var output []byte = make([]byte, 0)
 func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset int, temporaryBackup []byte) (int, error) {
 	var e error = new(MyError)
 	var index *int = new(int)
+	var start *int = new(int)
 	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
 	output, e = exe.Command("php", temporaryFilePath).Output()
@@ -243,8 +227,15 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset i
 	}
 	output = output[beforeOffset:]
 	*index = len(output) + beforeOffset
-	format(string(output))
+	var strOutput []string = strings.Split(string(output), "\n")
+	maxLength := len(strOutput)
+	for *start = 0; *start < maxLength; *start++ {
+		fmt.Print("    ")
+		format(strOutput[*start])
+	}
 	output = nil
+	strOutput = nil
+	start = nil
 	temporaryFp.Write([]byte("echo(PHP_EOL);"))
 	runtime.GC()
 	// プログラムが確保したメモリを強制的にOSへ返却
@@ -252,7 +243,6 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset i
 	return *index, e
 }
 
-// 関数内で自作エラーオブジェクトを生成
 type MyError struct {
 	ErrorMessage string
 }
