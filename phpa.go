@@ -61,15 +61,15 @@ func main() {
 	var tentativeFile *string = new(string)
 
 	// (1) 一時ファイル作成，且つ前回起動時のゴミファイルを削除する
-	var initialize *os.File = nil
+	var initialize *os.File = new(os.File)
 	var initializeFileName string = ""
 	//var absolutePath string = ""
 	var myError error = nil
 	// ※戻り値 => *os.File, error を返却
-	initialize, myError = ioutil.TempFile("", "__php__main__")
+	initialize, err = ioutil.TempFile("", "__php__main__")
 	defer initialize.Close()
-	if myError != nil {
-		format(myError.Error())
+	if err != nil {
+		format(err.Error())
 		os.Exit(255)
 	}
 	initialize.Chmod(os.ModePerm)
@@ -117,10 +117,10 @@ func main() {
 	defer ff.Close()
 	defer os.Remove(*tentativeFile)
 
-	var count int = 0
-	var ss int = 0
-	var multiple int = 0
-	var multipleTemp int = 0
+	var count int
+	var ss int
+	var multiple int
+	var multipleTemp int
 	var backup []byte = make([]byte, 0)
 	var currentDir string
 
