@@ -29,29 +29,8 @@ func main() {
 	var ff *os.File
 	var err error
 	var tentativeFile *string = new(string)
-
-	// (1) 一時ファイル作成，且つ前回起動時のゴミファイルを削除する
-	var initialize *os.File = nil
-	var initializeFileName string = ""
-	//var absolutePath string = ""
 	var myError error = nil
-	// ※戻り値 => *os.File, error を返却
-	initialize, myError = ioutil.TempFile("", "__php__main__")
-	defer initialize.Close()
-	if myError != nil {
-		format(myError.Error())
-		os.Exit(255)
-	}
-	initialize.Chmod(os.ModePerm)
-	// ファイルポインタから当該のファイルパスを取得(rootからの絶対パスを取得)
-	initializeFileName = initialize.Name()
-	// 念の為Absメソッドで絶対パスを取得
-	initializeFileName, myError = filepath.Abs(initializeFileName)
-	if myError != nil {
-		format(myError.Error())
-		os.Exit(255)
-	}
-
+	var writtenByte *int = new(int)
 	// ダミー実行ポインタ
 	ff, myError = ioutil.TempFile("", "__php__main__")
 	if myError != nil {
@@ -59,12 +38,22 @@ func main() {
 		os.Exit(1)
 	}
 	ff.Chmod(os.ModePerm)
-	_, myError = ff.WriteAt([]byte(initializer), 0)
+	*writtenByte, myError = ff.WriteAt([]byte(initializer), 0)
 	if myError != nil {
 		format(err.Error())
 		os.Exit(1)
 	}
-	*tentativeFile = ff.Name()
+	// ファイルポインタに書き込まれたバイト数を検証する
+	if *writtenByte != len(initializer) {
+		format("<スクリプトファイルの初期化に失敗しました.>")
+		os.Exit(255)
+	}
+	// ファイルポインタオブジェクトから絶対パスを取得する
+	*tentativeFile, myError = filepath.Abs(ff.Name())
+	if myError != nil {
+		format(myError)
+		os.Exit(255)
+	}
 	defer ff.Close()
 	defer os.Remove(*tentativeFile)
 
@@ -87,7 +76,7 @@ func main() {
 	}
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
-	saveRegex, myError = regexp.Compile("[ ]*save[ ]*$")
+	saveRegex, myError = regexp.Compile("^[ ]*save[ ]*$")
 	if myError != nil {
 		format(myError.Error())
 		format("<正規表現:Runtime Error>")
@@ -138,14 +127,24 @@ func main() {
 				break
 			}
 			var saveFp *os.File = new(os.File)
-			saveFp, myError = ioutil.TempFile(currentDir, "save")
+			if runtime.GOOS == "windows" {
+				currentDir += "\\save.php"
+			} else {
+				currentDir += "/save.php"
+			}
+			saveFp, myError = os.Create(currentDir)
 			if myError != nil {
 				format(myError.Error())
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
 			defer saveFp.Close()
-			saveFp.WriteAt(backup, 0)
+			*writtenByte, myError = saveFp.WriteAt(backup, 0)
+			if myError != nil {
+				format(myError.Error())
+				os.Exit(255)
+			}
+			format(currentDir + ":入力した内容を保存しました。")
 			saveFp.Close()
 			*line = ""
 			input = ""
