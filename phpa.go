@@ -8,11 +8,10 @@ import (
 	"os"
 	exe "os/exec"
 	"path/filepath"
-	_ "reflect"
+	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/debug"
-	_ "strconv"
 	"strings"
 	"unsafe"
 )
@@ -25,24 +24,51 @@ var outInteger *int = new(int)
 var outPP **int = &outInteger
 var outBool *bool = new(bool)
 
+func cast() {
+
+	// int型ポインタ
+	pointerInt := new(int)
+	*pointerInt = 434245
+	// Pointer型へ変換
+	unsafePointer1 := unsafe.Pointer(pointerInt)
+	var pointerString *float64 = (*float64)(unsafePointer1)
+
+	format(*pointerString)
+	*pointerString = 145.054541
+	format(*pointerInt)
+	format(*pointerString)
+}
 func memoryCheck() {
 
+	var before *int = new(int)
+	format(before)
+	*before = 145245
+	var beforePointer unsafe.Pointer = unsafe.Pointer(before)
+	format(beforePointer)
+	pointerBool := (*string)(beforePointer)
+	format(pointerBool)
+	format(*before)
+	*pointerBool = "215"
+	format(*pointerBool)
+	format(*before)
+	format(pointerBool)
+	format(reflect.TypeOf(*pointerBool))
+	format(unsafe.Sizeof(*pointerBool))
 	var i *int = new(int)
-	format(unsafe.Sizeof(*i))
-	format(unsafe.Offsetof(i))
-	format(i)
-	format(unsafe.Sizeof(i))
-	format(&i)
-	format(unsafe.Sizeof(&i))
 	var ii *int = new(int)
+	format(unsafe.Sizeof(*i))
+	fmt.Printf("%d", i)
+	print("\n")
+	fmt.Printf("%d", ii)
+	print("\n")
+	format(i)
 	format(unsafe.Sizeof(*ii))
 	format(ii)
-	format(unsafe.Sizeof(ii))
-	format(&ii)
-	format(unsafe.Sizeof(&ii))
-	format("関数終了")
+	format("====================関数終了")
 }
 func main() {
+	cast()
+	print("=========================================")
 	memoryCheck()
 	/*
 		0xc0420520a0
