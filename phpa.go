@@ -14,13 +14,83 @@ import (
 	"runtime/debug"
 	_ "strconv"
 	"strings"
+	"unsafe"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
 var split []string = make([]string, 0)
+var outError *error = new(error)
+var outInteger *int = new(int)
+var outPP **int = &outInteger
+var outBool *bool = new(bool)
 
+func memoryCheck() {
+
+	var i *int = new(int)
+	format(unsafe.Sizeof(*i))
+	format(unsafe.Offsetof(i))
+	format(i)
+	format(unsafe.Sizeof(i))
+	format(&i)
+	format(unsafe.Sizeof(&i))
+	var ii *int = new(int)
+	format(unsafe.Sizeof(*ii))
+	format(ii)
+	format(unsafe.Sizeof(ii))
+	format(&ii)
+	format(unsafe.Sizeof(&ii))
+	format("関数終了")
+}
 func main() {
+	memoryCheck()
+	/*
+		0xc0420520a0
+		0xc0420520a1
+		0xc0420520a2
+		0xc0420520a3
+		0xc0420520a4
+		0xc0420520a5
+		0xc0420520a6
+		0xc0420520a7
+
+		0xc0420520a8
+	*/
+
+	format(outInteger)
+	format(unsafe.Sizeof(*outInteger))
+	format(outBool)
+	format(unsafe.Sizeof(*outBool))
+	format(&outBool)
+	format(unsafe.Sizeof(&outBool))
+	format(&outInteger)
+	format(unsafe.Sizeof(&outInteger))
+	format("=========================================")
+	format(unsafe.Sizeof(*outBool))
+	format(unsafe.Sizeof(outBool))
+	format(outBool)
+	format(&outBool)
+	format(unsafe.Sizeof(*outBool))
+	format("newで確保したint型のオブジェクトのアドレス")
+	format(outInteger)
+	//0x c0 42 00 80 d8
+	format("newで確保したint型のオブジェクトのアドレスを保持しているアドレス")
+	format(&outInteger)
+	//0x 5b 47 20 => 5981984
+	format("ポインタのポインタのサイズ")
+	format(unsafe.Sizeof(outInteger))
+	format("newで確保したerrorインターフェースのオブジェクトのアドレス")
+	format(outError)
+	// 0x c0 42 03 e2 a0
+	format("newで確保したerrorインターフェースのオブジェクトのアドレスを保持しているアドレス")
+	format(&outError)
+	// 0x 5b 47 18 => 5981976
+	format("error オブジェクトのサイズ")
+	format(unsafe.Sizeof(*outError))
+	format("==============================")
+	format(unsafe.Sizeof(*outPP))
+	format(unsafe.Sizeof(*outError))
+	format(unsafe.Sizeof(*outInteger))
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
