@@ -219,7 +219,7 @@ func main() {
 			if ss > 0 {
 				input = ""
 				*line = ""
-				count, myError = tempFunction(ff, *tentativeFile, count, backup)
+				count, myError = tempFunction(ff, tentativeFile, &count, backup)
 				if err != nil {
 					format(myError.Error())
 					continue
@@ -235,7 +235,7 @@ func main() {
 
 var output []byte = make([]byte, 0)
 
-func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset int, temporaryBackup []byte) (int, error) {
+func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
 	var e error = new(MyError)
 	var index *int = new(int)
 	var start *int = new(int)
@@ -249,17 +249,17 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset i
 	format(*_int)
 	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
-	output, e = exe.Command("php", temporaryFilePath).Output()
+	output, e = exe.Command("php", *temporaryFilePath).Output()
 	// stdinから読み出したスクリプトが失敗した場合
 	if e != nil {
 		format(string(output))
 		temporaryFp.Truncate(0)
 		temporaryFp.Seek(0, 0)
 		temporaryFp.WriteAt(temporaryBackup, 0)
-		return beforeOffset, e
+		return *beforeOffset, e
 	}
-	output = output[beforeOffset:]
-	*index = len(output) + beforeOffset
+	output = output[*beforeOffset:]
+	*index = len(output) + *beforeOffset
 	var strOutput []string = strings.Split(string(output), "\n")
 	maxLength := len(strOutput)
 	for *start = 0; *start < maxLength; *start++ {
