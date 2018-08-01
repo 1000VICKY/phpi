@@ -8,12 +8,10 @@ import (
 	"os"
 	exe "os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
-	"unsafe"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
@@ -24,99 +22,7 @@ var outInteger *int = new(int)
 var outPP **int = &outInteger
 var outBool *bool = new(bool)
 
-func cast() {
-
-	// int型ポインタ
-	pointerInt := new(int)
-	*pointerInt = 434245
-	// Pointer型へ変換
-	unsafePointer1 := unsafe.Pointer(pointerInt)
-	var pointerString *float64 = (*float64)(unsafePointer1)
-
-	format(*pointerString)
-	*pointerString = 145.054541
-	format(*pointerInt)
-	format(*pointerString)
-}
-func memoryCheck() {
-
-	var before *int = new(int)
-	format(before)
-	*before = 145245
-	var beforePointer unsafe.Pointer = unsafe.Pointer(before)
-	format(beforePointer)
-	pointerBool := (*string)(beforePointer)
-	format(pointerBool)
-	format(*before)
-	*pointerBool = "215"
-	format(*pointerBool)
-	format(*before)
-	format(pointerBool)
-	format(reflect.TypeOf(*pointerBool))
-	format(unsafe.Sizeof(*pointerBool))
-	var i *int = new(int)
-	var ii *int = new(int)
-	format(unsafe.Sizeof(*i))
-	fmt.Printf("%d", i)
-	print("\n")
-	fmt.Printf("%d", ii)
-	print("\n")
-	format(i)
-	format(unsafe.Sizeof(*ii))
-	format(ii)
-	format("====================関数終了")
-}
 func main() {
-	cast()
-	print("=========================================")
-	memoryCheck()
-	/*
-		0xc0420520a0
-		0xc0420520a1
-		0xc0420520a2
-		0xc0420520a3
-		0xc0420520a4
-		0xc0420520a5
-		0xc0420520a6
-		0xc0420520a7
-
-		0xc0420520a8
-	*/
-
-	format(outInteger)
-	format(unsafe.Sizeof(*outInteger))
-	format(outBool)
-	format(unsafe.Sizeof(*outBool))
-	format(&outBool)
-	format(unsafe.Sizeof(&outBool))
-	format(&outInteger)
-	format(unsafe.Sizeof(&outInteger))
-	format("=========================================")
-	format(unsafe.Sizeof(*outBool))
-	format(unsafe.Sizeof(outBool))
-	format(outBool)
-	format(&outBool)
-	format(unsafe.Sizeof(*outBool))
-	format("newで確保したint型のオブジェクトのアドレス")
-	format(outInteger)
-	//0x c0 42 00 80 d8
-	format("newで確保したint型のオブジェクトのアドレスを保持しているアドレス")
-	format(&outInteger)
-	//0x 5b 47 20 => 5981984
-	format("ポインタのポインタのサイズ")
-	format(unsafe.Sizeof(outInteger))
-	format("newで確保したerrorインターフェースのオブジェクトのアドレス")
-	format(outError)
-	// 0x c0 42 03 e2 a0
-	format("newで確保したerrorインターフェースのオブジェクトのアドレスを保持しているアドレス")
-	format(&outError)
-	// 0x 5b 47 18 => 5981976
-	format("error オブジェクトのサイズ")
-	format(unsafe.Sizeof(*outError))
-	format("==============================")
-	format(unsafe.Sizeof(*outPP))
-	format(unsafe.Sizeof(*outError))
-	format(unsafe.Sizeof(*outInteger))
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
@@ -334,14 +240,6 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset 
 	var e error = new(MyError)
 	var index *int = new(int)
 	var start *int = new(int)
-	var _int *int = new(int)
-	_intPointer := unsafe.Pointer(_int)
-	var _float *float64 = (*float64)(_intPointer)
-	format(_float)
-	format(*_float)
-	*_float = 0.5
-	format(*_float)
-	format(*_int)
 	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
 	output, e = exe.Command("php", *temporaryFilePath).Output()
