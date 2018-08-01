@@ -163,6 +163,10 @@ func main() {
 	// 末尾はバックスラッシュの場合，以降再びバックスラッシュで終わるまで
 	// スクリプトを実行しない
 	var reg *regexp.Regexp = nil
+	var openBrace *regexp.Regexp = new(regexp.Regexp)
+	var openCount int = 0
+	var closeBrace *regexp.Regexp = new(regexp.Regexp)
+	var closeCount int = 0
 	reg, myError = regexp.Compile("((\\\\)+[ ]*|_+[ ]*)$")
 	// 正規表現実行箇所エラーハンドリング
 	if myError != nil {
@@ -170,6 +174,8 @@ func main() {
 		format("<正規表現:RunTime Error>")
 		os.Exit(255)
 	}
+	openBrace, _ = regexp.Compile("^.*{$")
+	closeBrace, _ = regexp.Compile("^[ ]*}[ ]*$")
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
 	saveRegex, myError = regexp.Compile("^[ ]*save[ ]*$")
@@ -250,32 +256,51 @@ func main() {
 			continue
 		}
 
-		// 正規表現のマッチチェック
-		res := reg.MatchString(*line)
-		if res == true {
-			// 複数行入力フラグ
-			if multipleTemp == 0 {
-				multipleTemp = 1
-				multiple = 1
-			} else if multipleTemp == 1 {
-				multipleTemp = 0
-				multiple = 0
+		ob := openBrace.MatchString(*line)
+		if ob == true {
+			openCount = openCount + 1
+		}
+		cb := closeBrace.MatchString(*line)
+		if cb == true {
+			closeCount = closeCount + 1
+		}
+		// ブレースによる複数入力フラグがfalseの場合
+		if openCount == 0 && closeCount == 0 {
+			// 正規表現のマッチチェック
+			res := reg.MatchString(*line)
+			if res == true {
+				// 複数行入力フラグ
+				if multipleTemp == 0 {
+					multipleTemp = 1
+					multiple = 1
+				} else if multipleTemp == 1 {
+					multipleTemp = 0
+					multiple = 0
+				} else {
+					format("<不正な処理:Runtime Error>")
+					break
+				}
 			} else {
-				format("<不正な処理:Runtime Error>")
-				break
+				// 複数行入力フラグ
+				if multipleTemp == 0 {
+					multipleTemp = 0
+					multiple = 0
+				} else if multipleTemp == 1 {
+					multipleTemp = 1
+					multiple = 1
+				} else {
+					format("<不正な処理:Runtime Error>")
+					break
+				}
 			}
+		} else if openCount != closeCount {
+			multiple = 1
+		} else if openCount == closeCount {
+			multiple = 0
+			openCount = 0
+			closeCount = 0
 		} else {
-			// 複数行入力フラグ
-			if multipleTemp == 0 {
-				multipleTemp = 0
-				multiple = 0
-			} else if multipleTemp == 1 {
-				multipleTemp = 1
-				multiple = 1
-			} else {
-				format("<不正な処理:Runtime Error>")
-				break
-			}
+
 		}
 		*line = string(reg.ReplaceAll([]byte(*line), []byte("")))
 		input += *line + "\n"
@@ -289,7 +314,7 @@ func main() {
 			if ss > 0 {
 				input = ""
 				*line = ""
-				count, myError = tempFunction(ff, *tentativeFile, count, backup)
+				count, myError = tempFunction(ff, tentativeFile, &count, backup)
 				if err != nil {
 					format(myError.Error())
 					continue
@@ -305,23 +330,31 @@ func main() {
 
 var output []byte = make([]byte, 0)
 
-func tempFunction(temporaryFp *os.File, temporaryFilePath string, beforeOffset int, temporaryBackup []byte) (int, error) {
+func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
 	var e error = new(MyError)
 	var index *int = new(int)
 	var start *int = new(int)
+	var _int *int = new(int)
+	_intPointer := unsafe.Pointer(_int)
+	var _float *float64 = (*float64)(_intPointer)
+	format(_float)
+	format(*_float)
+	*_float = 0.5
+	format(*_float)
+	format(*_int)
 	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
-	output, e = exe.Command("php", temporaryFilePath).Output()
+	output, e = exe.Command("php", *temporaryFilePath).Output()
 	// stdinから読み出したスクリプトが失敗した場合
 	if e != nil {
 		format(string(output))
 		temporaryFp.Truncate(0)
 		temporaryFp.Seek(0, 0)
 		temporaryFp.WriteAt(temporaryBackup, 0)
-		return beforeOffset, e
+		return *beforeOffset, e
 	}
-	output = output[beforeOffset:]
-	*index = len(output) + beforeOffset
+	output = output[*beforeOffset:]
+	*index = len(output) + *beforeOffset
 	var strOutput []string = strings.Split(string(output), "\n")
 	maxLength := len(strOutput)
 	for *start = 0; *start < maxLength; *start++ {
