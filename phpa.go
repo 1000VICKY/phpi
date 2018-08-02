@@ -73,7 +73,6 @@ func main() {
 	// 正規表現実行箇所エラーハンドリング
 	if err != nil {
 		format(err)
-		format("<正規表現:RunTime Error>")
 		os.Exit(255)
 	}
 	openBrace, _ = regexp.Compile("^.*{$")
@@ -83,7 +82,6 @@ func main() {
 	saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
 	if err != nil {
 		format(err)
-		format("<正規表現:Runtime Error>")
 		os.Exit(255)
 	}
 	var scanner *bufio.Scanner = new(bufio.Scanner)
@@ -94,7 +92,6 @@ func main() {
 		ff.Seek(0, 0)
 		backup, err = ioutil.ReadAll(ff)
 		if err != nil {
-			format("バックアップに失敗!")
 			format(err.Error())
 			break
 		}
@@ -111,7 +108,7 @@ func main() {
 		if *line == "del" {
 			ff, err = deleteFile(ff, "<?php ")
 			if err != nil {
-				panic(err)
+				format(err)
 				os.Exit(255)
 			}
 			*line = ""
@@ -125,13 +122,12 @@ func main() {
 			*/
 			currentDir, err = os.Getwd()
 			if err != nil {
-				format("<カレントディレクトリの取得に失敗>")
 				format(err)
 				os.Exit(255)
 			}
 			currentDir, err = filepath.Abs(currentDir)
 			if err != nil {
-				format(err.Error())
+				format(err)
 				break
 			}
 			var saveFp *os.File = new(os.File)
@@ -142,14 +138,14 @@ func main() {
 			}
 			saveFp, err = os.Create(currentDir)
 			if err != nil {
-				format(err.Error())
+				format(err)
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
 			defer saveFp.Close()
 			*writtenByte, err = saveFp.WriteAt(backup, 0)
 			if err != nil {
-				format(err.Error())
+				format(err)
 				os.Exit(255)
 			}
 			format(currentDir + ":入力した内容を保存しました。")
@@ -184,7 +180,7 @@ func main() {
 					multiple = 0
 				} else {
 					format("<不正な処理:Runtime Error>")
-					break
+					os.Exit(255)
 				}
 			} else {
 				// 複数行入力フラグ
@@ -196,7 +192,7 @@ func main() {
 					multiple = 1
 				} else {
 					format("<不正な処理:Runtime Error>")
-					break
+					os.Exit(255)
 				}
 			}
 		} else if openCount != closeCount {
@@ -206,7 +202,7 @@ func main() {
 			openCount = 0
 			closeCount = 0
 		} else {
-			panic("シンタックスエラー:")
+			panic("Runtime Error happened!:")
 		}
 		*line = string(reg.ReplaceAll([]byte(*line), []byte("")))
 		input += *line + "\n"
@@ -229,7 +225,7 @@ func main() {
 		} else if multiple == 1 {
 			// 現在複数行で入力中
 		} else {
-			format("<不正な処理>")
+			format("<Runtime Error>")
 		}
 	}
 }
