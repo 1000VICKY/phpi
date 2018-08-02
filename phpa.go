@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	exe "os/exec"
 	"path/filepath"
@@ -17,14 +18,13 @@ import (
 
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
-var split []string = make([]string, 0)
 
 func main() {
+	format(http.Get("https://fukuoka.nasse.com"))
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
-	var line *string
-	line = new(string)
+	var line *string = new(string)
 	var ff *os.File
 	var err error
 	var tentativeFile *string = new(string)
@@ -32,14 +32,14 @@ func main() {
 	// ダミー実行ポインタ
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
-		format(err.Error())
-		os.Exit(1)
+		format(err)
+		os.Exit(255)
 	}
 	ff.Chmod(os.ModePerm)
 	*writtenByte, err = ff.WriteAt([]byte(initializer), 0)
 	if err != nil {
 		format(err)
-		os.Exit(1)
+		os.Exit(255)
 	}
 	// ファイルポインタに書き込まれたバイト数を検証する
 	if *writtenByte != len(initializer) {
@@ -110,6 +110,10 @@ func main() {
 
 		if *line == "del" {
 			ff, err = deleteFile(ff, "<?php ")
+			if err != nil {
+				panic(err)
+				os.Exit(255)
+			}
 			*line = ""
 			input = ""
 			count = 0
@@ -122,8 +126,8 @@ func main() {
 			currentDir, err = os.Getwd()
 			if err != nil {
 				format("<カレントディレクトリの取得に失敗>")
-				format(err.Error())
-				break
+				format(err)
+				os.Exit(255)
 			}
 			currentDir, err = filepath.Abs(currentDir)
 			if err != nil {
@@ -132,9 +136,9 @@ func main() {
 			}
 			var saveFp *os.File = new(os.File)
 			if runtime.GOOS == "windows" {
-				currentDir += "\\save.php"
+				currentDir += "\\save.php" // C:\\aaa\\bbb\\save.php
 			} else {
-				currentDir += "/save.php"
+				currentDir += "/save.php" // /aaa/bbb/save.php
 			}
 			saveFp, err = os.Create(currentDir)
 			if err != nil {
@@ -202,7 +206,7 @@ func main() {
 			openCount = 0
 			closeCount = 0
 		} else {
-
+			panic("シンタックスエラー:")
 		}
 		*line = string(reg.ReplaceAll([]byte(*line), []byte("")))
 		input += *line + "\n"
