@@ -6,7 +6,6 @@ import (
 	"fmt"
 	_ "io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	exe "os/exec"
 	"path/filepath"
@@ -20,7 +19,6 @@ var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
 
 func main() {
-	format(http.Get("https://fukuoka.nasse.com"))
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
@@ -58,25 +56,17 @@ func main() {
 	var count int = 0
 	var ss int = 0
 	var multiple int = 0
-	var multipleTemp int = 0
 	var backup []byte = make([]byte, 0)
 	var currentDir string
 
 	// 末尾はバックスラッシュの場合，以降再びバックスラッシュで終わるまで
 	// スクリプトを実行しない
-	var reg *regexp.Regexp = nil
 	var openBrace *regexp.Regexp = new(regexp.Regexp)
 	var openCount int = 0
 	var closeBrace *regexp.Regexp = new(regexp.Regexp)
 	var closeCount int = 0
-	reg, err = regexp.Compile("((\\\\)+[ ]*|_+[ ]*)$")
-	// 正規表現実行箇所エラーハンドリング
-	if err != nil {
-		format(err)
-		os.Exit(255)
-	}
-	openBrace, _ = regexp.Compile("^.*{$")
-	closeBrace, _ = regexp.Compile("^[ ]*}[ ]*$")
+	openBrace, _ = regexp.Compile("^.*{[ \t]*$")
+	closeBrace, _ = regexp.Compile("^[ \t]*}[ \t;]*$")
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
 	saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
@@ -168,33 +158,7 @@ func main() {
 		}
 		// ブレースによる複数入力フラグがfalseの場合
 		if openCount == 0 && closeCount == 0 {
-			// 正規表現のマッチチェック
-			res := reg.MatchString(*line)
-			if res == true {
-				// 複数行入力フラグ
-				if multipleTemp == 0 {
-					multipleTemp = 1
-					multiple = 1
-				} else if multipleTemp == 1 {
-					multipleTemp = 0
-					multiple = 0
-				} else {
-					format("<不正な処理:Runtime Error>")
-					os.Exit(255)
-				}
-			} else {
-				// 複数行入力フラグ
-				if multipleTemp == 0 {
-					multipleTemp = 0
-					multiple = 0
-				} else if multipleTemp == 1 {
-					multipleTemp = 1
-					multiple = 1
-				} else {
-					format("<不正な処理:Runtime Error>")
-					os.Exit(255)
-				}
-			}
+			multiple = 0
 		} else if openCount != closeCount {
 			multiple = 1
 		} else if openCount == closeCount {
@@ -204,7 +168,6 @@ func main() {
 		} else {
 			panic("Runtime Error happened!:")
 		}
-		*line = string(reg.ReplaceAll([]byte(*line), []byte("")))
 		input += *line + "\n"
 		if multiple == 0 {
 			ss, err = ff.Write([]byte(input))
@@ -223,28 +186,33 @@ func main() {
 				}
 			}
 		} else if multiple == 1 {
-			// 現在複数行で入力中
+			continue
 		} else {
 			format("<Runtime Error>")
 		}
 	}
 }
 
-func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
+func tempFunction(fp *os.File, filePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
 	var output []byte = make([]byte, 0)
 	var e error = nil
 	var index *int = new(int)
 	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
-	output, e = exe.Command("php", *temporaryFilePath).Output()
-	// stdinから読み出したスクリプトが失敗した場合
+	// (1)まずは終了コードを取得
+	e = exe.Command("php", *filePath).Run()
 	if e != nil {
+		// スクリプトを実行した結果、実行失敗の場合
+		output, _ = exe.Command("php", *filePath).Output()
+		output = output[*beforeOffset:]
 		format(string(output))
-		temporaryFp.Truncate(0)
-		temporaryFp.Seek(0, 0)
-		temporaryFp.WriteAt(temporaryBackup, 0)
+		fp.Truncate(0)
+		fp.Seek(0, 0)
+		fp.WriteAt(temporaryBackup, 0)
+		debug.FreeOSMemory()
 		return *beforeOffset, e
 	}
+	output, _ = exe.Command("php", *filePath).Output()
 	output = output[*beforeOffset:]
 	*index = len(output) + *beforeOffset
 	var strOutput []string = strings.Split(string(output), "\n")
@@ -254,10 +222,9 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset 
 	}
 	output = nil
 	strOutput = nil
-	temporaryFp.Write([]byte("echo(PHP_EOL);"))
+	fp.Write([]byte("echo(PHP_EOL);"))
 	// プログラムが確保したメモリを強制的にOSへ返却
 	debug.FreeOSMemory()
-	runtime.GC()
 	return *index, e
 }
 
