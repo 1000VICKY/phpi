@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	_ "io"
 	"io/ioutil"
@@ -17,10 +18,6 @@ import (
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
 var split []string = make([]string, 0)
-var outError *error = new(error)
-var outInteger *int = new(int)
-var outPP **int = &outInteger
-var outBool *bool = new(bool)
 
 func main() {
 	const initializer = "<?php " + "\n"
@@ -31,18 +28,17 @@ func main() {
 	var ff *os.File
 	var err error
 	var tentativeFile *string = new(string)
-	var myError error = nil
 	var writtenByte *int = new(int)
 	// ダミー実行ポインタ
-	ff, myError = ioutil.TempFile("", "__php__main__")
-	if myError != nil {
-		format(myError.Error())
+	ff, err = ioutil.TempFile("", "__php__main__")
+	if err != nil {
+		format(err.Error())
 		os.Exit(1)
 	}
 	ff.Chmod(os.ModePerm)
-	*writtenByte, myError = ff.WriteAt([]byte(initializer), 0)
-	if myError != nil {
-		format(err.Error())
+	*writtenByte, err = ff.WriteAt([]byte(initializer), 0)
+	if err != nil {
+		format(err)
 		os.Exit(1)
 	}
 	// ファイルポインタに書き込まれたバイト数を検証する
@@ -51,9 +47,9 @@ func main() {
 		os.Exit(255)
 	}
 	// ファイルポインタオブジェクトから絶対パスを取得する
-	*tentativeFile, myError = filepath.Abs(ff.Name())
-	if myError != nil {
-		format(myError)
+	*tentativeFile, err = filepath.Abs(ff.Name())
+	if err != nil {
+		format(err)
 		os.Exit(255)
 	}
 	defer ff.Close()
@@ -73,10 +69,10 @@ func main() {
 	var openCount int = 0
 	var closeBrace *regexp.Regexp = new(regexp.Regexp)
 	var closeCount int = 0
-	reg, myError = regexp.Compile("((\\\\)+[ ]*|_+[ ]*)$")
+	reg, err = regexp.Compile("((\\\\)+[ ]*|_+[ ]*)$")
 	// 正規表現実行箇所エラーハンドリング
-	if myError != nil {
-		format(myError.Error())
+	if err != nil {
+		format(err)
 		format("<正規表現:RunTime Error>")
 		os.Exit(255)
 	}
@@ -84,9 +80,9 @@ func main() {
 	closeBrace, _ = regexp.Compile("^[ ]*}[ ]*$")
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
-	saveRegex, myError = regexp.Compile("^[ ]*save[ ]*$")
-	if myError != nil {
-		format(myError.Error())
+	saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
+	if err != nil {
+		format(err)
 		format("<正規表現:Runtime Error>")
 		os.Exit(255)
 	}
@@ -96,10 +92,10 @@ func main() {
 		runtime.GC()
 		// ループ開始時に正常動作するソースのバックアップを取得
 		ff.Seek(0, 0)
-		backup, myError = ioutil.ReadAll(ff)
-		if myError != nil {
+		backup, err = ioutil.ReadAll(ff)
+		if err != nil {
 			format("バックアップに失敗!")
-			format(myError.Error())
+			format(err.Error())
 			break
 		}
 
@@ -113,7 +109,7 @@ func main() {
 		*line = scanner.Text()
 
 		if *line == "del" {
-			ff, myError = deleteFile(ff, "<?php ")
+			ff, err = deleteFile(ff, "<?php ")
 			*line = ""
 			input = ""
 			count = 0
@@ -123,15 +119,15 @@ func main() {
 			   [save]コマンドが入力された場合，その時点まで入力されたスクリプトを
 			   カレントディレクトリに保存する
 			*/
-			currentDir, myError = os.Getwd()
-			if myError != nil {
+			currentDir, err = os.Getwd()
+			if err != nil {
 				format("<カレントディレクトリの取得に失敗>")
-				format(myError.Error())
+				format(err.Error())
 				break
 			}
-			currentDir, myError = filepath.Abs(currentDir)
-			if myError != nil {
-				format(myError.Error())
+			currentDir, err = filepath.Abs(currentDir)
+			if err != nil {
+				format(err.Error())
 				break
 			}
 			var saveFp *os.File = new(os.File)
@@ -140,16 +136,16 @@ func main() {
 			} else {
 				currentDir += "/save.php"
 			}
-			saveFp, myError = os.Create(currentDir)
-			if myError != nil {
-				format(myError.Error())
+			saveFp, err = os.Create(currentDir)
+			if err != nil {
+				format(err.Error())
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
 			defer saveFp.Close()
-			*writtenByte, myError = saveFp.WriteAt(backup, 0)
-			if myError != nil {
-				format(myError.Error())
+			*writtenByte, err = saveFp.WriteAt(backup, 0)
+			if err != nil {
+				format(err.Error())
 				os.Exit(255)
 			}
 			format(currentDir + ":入力した内容を保存しました。")
@@ -211,18 +207,18 @@ func main() {
 		*line = string(reg.ReplaceAll([]byte(*line), []byte("")))
 		input += *line + "\n"
 		if multiple == 0 {
-			ss, myError = ff.Write([]byte(input))
-			if myError != nil {
+			ss, err = ff.Write([]byte(input))
+			if err != nil {
 				format("<ファイルポインタへの書き込み失敗>")
-				format("=>" + myError.Error())
+				format("=>" + err.Error())
 				continue
 			}
 			if ss > 0 {
 				input = ""
 				*line = ""
-				count, myError = tempFunction(ff, tentativeFile, &count, backup)
+				count, err = tempFunction(ff, tentativeFile, &count, backup)
 				if err != nil {
-					format(myError.Error())
+					format(err.Error())
 					continue
 				}
 			}
@@ -234,12 +230,10 @@ func main() {
 	}
 }
 
-var output []byte = make([]byte, 0)
-
 func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
-	var e error = new(MyError)
+	var output []byte = make([]byte, 0)
+	var e error = nil
 	var index *int = new(int)
-	var start *int = new(int)
 	runtime.GC()
 	// バックグラウンドでPHPをコマンドラインで実行
 	output, e = exe.Command("php", *temporaryFilePath).Output()
@@ -254,42 +248,29 @@ func tempFunction(temporaryFp *os.File, temporaryFilePath *string, beforeOffset 
 	output = output[*beforeOffset:]
 	*index = len(output) + *beforeOffset
 	var strOutput []string = strings.Split(string(output), "\n")
-	maxLength := len(strOutput)
-	for *start = 0; *start < maxLength; *start++ {
+	for _, value := range strOutput {
 		fmt.Print("    ")
-		format(strOutput[*start])
+		format(value)
 	}
 	output = nil
 	strOutput = nil
-	start = nil
 	temporaryFp.Write([]byte("echo(PHP_EOL);"))
-	runtime.GC()
 	// プログラムが確保したメモリを強制的にOSへ返却
 	debug.FreeOSMemory()
+	runtime.GC()
 	return *index, e
-}
-
-type MyError struct {
-	ErrorMessage string
-}
-
-func (this *MyError) Error() string {
-	return this.ErrorMessage
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
 	var size int
-	var e error
-	var myError *MyError = new(MyError)
+	var err error
 	fp.Truncate(0)
 	fp.Seek(0, 0)
-	size, e = fp.WriteAt([]byte(initialString), 0)
+	size, err = fp.WriteAt([]byte(initialString), 0)
 	fp.Seek(0, 0)
-	if e == nil && size >= 0 {
-		myError = nil
-		return fp, myError
+	if err == nil && size >= 0 {
+		return fp, err
 	} else {
-		myError.ErrorMessage = "一時ファイルの初期化に失敗しました。"
-		return fp, myError
+		return fp, errors.New("一時ファイルの初期化に失敗しました。")
 	}
 }
