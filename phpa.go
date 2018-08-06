@@ -173,7 +173,7 @@ func main() {
 			ss, err = ff.Write([]byte(input))
 			if err != nil {
 				format("<ファイルポインタへの書き込み失敗>")
-				format("=>" + err.Error())
+				format("    " + err.Error())
 				continue
 			}
 			if ss > 0 {
@@ -181,7 +181,6 @@ func main() {
 				*line = ""
 				count, err = tempFunction(ff, tentativeFile, &count, backup)
 				if err != nil {
-					format(err.Error())
 					continue
 				}
 			}
@@ -194,6 +193,7 @@ func main() {
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
+	defer debug.FreeOSMemory()
 	var output []byte = make([]byte, 0)
 	var e error = nil
 	var index *int = new(int)
@@ -203,9 +203,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset *int, temporaryBac
 	e = exe.Command("php", *filePath).Run()
 	if e != nil {
 		// スクリプトを実行した結果、実行失敗の場合
-		output, _ = exe.Command("php", *filePath).Output()
-		output = output[*beforeOffset:]
-		format(string(output))
+		output, e = exe.Command("php", *filePath).Output()
+		fmt.Println("    " + e.Error())
 		fp.Truncate(0)
 		fp.Seek(0, 0)
 		fp.WriteAt(temporaryBackup, 0)
@@ -229,13 +228,14 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset *int, temporaryBac
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
+	defer debug.FreeOSMemory()
 	var size int
 	var err error
 	fp.Truncate(0)
 	fp.Seek(0, 0)
 	size, err = fp.WriteAt([]byte(initialString), 0)
 	fp.Seek(0, 0)
-	if err == nil && size >= 0 {
+	if err == nil && size == len(initialString) {
 		return fp, err
 	} else {
 		return fp, errors.New("一時ファイルの初期化に失敗しました。")
