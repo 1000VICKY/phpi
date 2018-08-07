@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"syscall"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
@@ -179,7 +180,7 @@ func main() {
 			if ss > 0 {
 				input = ""
 				*line = ""
-				count, err = tempFunction(ff, tentativeFile, &count, backup)
+				count, err = tempFunction(ff, tentativeFile, count, backup)
 				if err != nil {
 					continue
 				}
@@ -192,8 +193,9 @@ func main() {
 	}
 }
 
-func tempFunction(fp *os.File, filePath *string, beforeOffset *int, temporaryBackup []byte) (int, error) {
+func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
 	defer debug.FreeOSMemory()
+	var strOutput []string = make([]string, 0)
 	var output []byte = make([]byte, 0)
 	var e error = nil
 	var index *int = new(int)
@@ -202,28 +204,52 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset *int, temporaryBac
 	// (1)まずは終了コードを取得
 	e = exe.Command("php", *filePath).Run()
 	if e != nil {
-		// スクリプトを実行した結果、実行失敗の場合
-		output, e = exe.Command("php", *filePath).Output()
-		fmt.Println("    " + e.Error())
-		fp.Truncate(0)
-		fp.Seek(0, 0)
-		fp.WriteAt(temporaryBackup, 0)
-		debug.FreeOSMemory()
-		return *beforeOffset, e
+		var ok bool
+		var exitError *exe.ExitError = nil
+		var exitStatus int = 0
+		if exitError, ok = e.(*exe.ExitError); ok == true {
+			if s, ok := exitError.Sys().(syscall.WaitStatus); ok == true {
+				exitStatus = s.ExitStatus()
+				if exitStatus != 0 {
+					// スクリプトを実行した結果、実行失敗の場合
+					output, e = exe.Command("php", *filePath).Output()
+					castStr := string(output)
+					// 改行で区切って[]string型に代入する
+					strOutput = strings.Split(castStr, "\n")
+					for key, value := range strOutput {
+						fmt.Println("    " + value)
+						strOutput[key] = ""
+					}
+					fmt.Println("    " + e.Error())
+					fp.Truncate(0)
+					fp.Seek(0, 0)
+					fp.WriteAt(temporaryBackup, 0)
+					debug.FreeOSMemory()
+					return beforeOffset, e
+				}
+			} else {
+				panic(errors.New("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus."))
+			}
+		}
 	}
 	output, _ = exe.Command("php", *filePath).Output()
-	output = output[*beforeOffset:]
-	*index = len(output) + *beforeOffset
-	var strOutput []string = strings.Split(string(output), "\n")
-	for _, value := range strOutput {
-		fmt.Print("    ")
-		format(value)
+	/*
+		var s string = string(output);
+		var sarray []string = strings.Split(s, "\n");
+	*/
+	strOutput = strings.Split(string(output), "\n")
+	strOutput = strOutput[beforeOffset:]
+	*index = len(strOutput) + beforeOffset
+	for key, value := range strOutput {
+		fmt.Println("    " + value)
+		strOutput[key] = ""
 	}
 	output = nil
 	strOutput = nil
 	fp.Write([]byte("echo(PHP_EOL);"))
 	// プログラムが確保したメモリを強制的にOSへ返却
 	debug.FreeOSMemory()
+	fmt.Println(*index)
 	return *index, e
 }
 
