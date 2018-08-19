@@ -121,22 +121,24 @@ func main() {
 				format(err)
 				break
 			}
-			var saveFp *os.File = new(os.File)
 			if runtime.GOOS == "windows" {
-				currentDir += "\\save.php" // C:\\aaa\\bbb\\save.php
+				// C:\\aaa\\bbb\\save.php
+				currentDir += "\\save.php"
 			} else {
-				currentDir += "/save.php" // /aaa/bbb/save.php
+				// /aaa/bbb/save.php
+				currentDir += "/save.php"
 			}
+			var saveFp *os.File = new(os.File)
 			saveFp, err = os.Create(currentDir)
 			if err != nil {
 				format(err)
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
-			defer saveFp.Close()
 			*writtenByte, err = saveFp.WriteAt(backup, 0)
 			if err != nil {
-				format(err)
+				saveFp.Close()
+				fmt.Println(err)
 				os.Exit(255)
 			}
 			format(currentDir + ":入力した内容を保存しました。")
@@ -188,7 +190,7 @@ func main() {
 		} else if multiple == 1 {
 			continue
 		} else {
-			format("<Runtime Error>")
+			panic("<Runtime Error>")
 		}
 	}
 }
@@ -249,7 +251,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 	fp.Write([]byte("echo(PHP_EOL);"))
 	// プログラムが確保したメモリを強制的にOSへ返却
 	debug.FreeOSMemory()
-	fmt.Println(*index)
+	//fmt.Println("    " + strconv.Itoa(*index) + "byte")
 	return *index, e
 }
 
