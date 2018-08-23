@@ -67,7 +67,7 @@ func main() {
 	var closeBrace *regexp.Regexp = new(regexp.Regexp)
 	var closeCount int = 0
 	openBrace, _ = regexp.Compile("^.*{[ \t]*$")
-	closeBrace, _ = regexp.Compile("^[ \t]*}[ \t;]*$")
+	closeBrace, _ = regexp.Compile("^[ \t]*}.*$")
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
 	saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
