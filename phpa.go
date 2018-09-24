@@ -128,7 +128,7 @@ func main() {
 				// /aaa/bbb/save.php
 				currentDir += "/save.php"
 			}
-			var saveFp *os.File = new(os.File)
+			saveFp := new(os.File)
 			saveFp, err = os.Create(currentDir)
 			if err != nil {
 				format(err)
