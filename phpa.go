@@ -66,8 +66,8 @@ func main() {
 	var openCount int = 0
 	var closeBrace *regexp.Regexp = new(regexp.Regexp)
 	var closeCount int = 0
-	openBrace, _ = regexp.Compile("^.*{[ \t]*[.]*$")
-	closeBrace, _ = regexp.Compile("^[ \t]*}.*$")
+	openBrace, _ = regexp.Compile("^.*{[ \t]*.*$")
+	closeBrace, _ = regexp.Compile("^.*}.*$")
 	// [save]というキーワードを入力した場合の正規表現
 	var saveRegex *regexp.Regexp = new(regexp.Regexp)
 	saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
@@ -157,7 +157,6 @@ func main() {
 			if len(ob[0]) > 0 {
 				//if ob == true {
 				openCount = openCount + len(ob[0])
-				print(ob[0])
 			}
 		}
 		//cb := closeBrace.MatchString(*line)
@@ -166,7 +165,6 @@ func main() {
 			if len(cb[0]) > 0 {
 				//if cb == true {
 				closeCount = closeCount + len(cb[0])
-				print(cb[0])
 			}
 		}
 		// ブレースによる複数入力フラグがfalseの場合
