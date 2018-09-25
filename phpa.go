@@ -91,7 +91,7 @@ func main() {
 		if multiple == 1 {
 			myPrint("... ")
 		} else {
-			myPrint(">>> ")
+			fmt.Printf("[%d]>>> ", count)
 		}
 		scanner.Scan()
 		*line = scanner.Text()
