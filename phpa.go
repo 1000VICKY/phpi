@@ -248,6 +248,9 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 		var sarray []string = strings.Split(s, "\n");
 	*/
 	strOutput = strings.Split(string(output), "\n")
+	if len(strOutput) < beforeOffset {
+		beforeOffset = len(strOutput)
+	}
 	strOutput = strOutput[beforeOffset:]
 	*index = len(strOutput) + beforeOffset
 	for key, value := range strOutput {
