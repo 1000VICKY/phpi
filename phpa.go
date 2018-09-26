@@ -214,6 +214,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 	// (1)まずは終了コードを取得
 	e = exe.Command("php", *filePath).Run()
 	if e != nil {
+		fmt.Println("終了コードが0以外")
 		var ok bool
 		var exitError *exe.ExitError = nil
 		var exitStatus int = 0
@@ -225,7 +226,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 					output, e = exe.Command("php", *filePath).Output()
 					castStr := string(output)
 					// 改行で区切って[]string型に代入する
-					strOutput = strings.Split(castStr, "\n")
+					strOutput = strings.Split(castStr, "\n")[beforeOffset:]
 					for key, value := range strOutput {
 						fmt.Println("    " + value)
 						strOutput[key] = ""
