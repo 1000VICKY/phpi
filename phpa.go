@@ -226,7 +226,10 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 					output, e = exe.Command("php", *filePath).Output()
 					castStr := string(output)
 					// 改行で区切って[]string型に代入する
-					strOutput = strings.Split(castStr, "\n")[beforeOffset:]
+					strOutput = strings.Split(castStr, "\n")
+					if len(strOutput) >= beforeOffset {
+						strOutput = strings.Split(castStr, "\n")[beforeOffset:]
+					}
 					for key, value := range strOutput {
 						fmt.Println("    " + value)
 						strOutput[key] = ""
