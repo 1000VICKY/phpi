@@ -210,10 +210,10 @@ func main() {
 	// シグナル用のチャネル定義
 	quit := make(chan os.Signal)
 	// 受け取るシグナルを設定
-	signal.Ignore(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt)
 	<-quit
 	fmt.Printf("%s", "シグナルを受信")
-	//interactiveShell()
+
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
