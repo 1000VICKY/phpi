@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+// 人間構造体
+struct MyStruct {
+    char* name;
+    char* address;
+    int age;
+    float height;
+    float weight;
+};
+int main () {
+
+    struct MyStruct* humans;
+    struct MyStruct* h;
+    // 人間型構造体を30人分作成
+    int c = 30;
+    humans = (struct MyStruct*)malloc(c * sizeof(MyStruct));
+    int i = 0;
+    for(i = 0; i < c; i++) {
+        h = humans + i;
+        h->name = "仮名";
+        h->address = "福岡";
+        h->height  = 176;
+        h->weight = 70.6;
+        printf("名前:%s", h->name);
+        printf("名前のポインタ:%p", h->name);
+        printf("住所:%s", h->address);
+        printf("身長:<%d>体重:<%d>", h->height, h->weight);
+    }
+}
+
+
+

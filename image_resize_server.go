@@ -75,7 +75,7 @@ func main() {
 
     // http://localhost:8080 でサービスを行う
     // 秘密鍵は,事前に復号化しておいたファイルのパスを渡す
-    //err := http.ListenAndServeTLS(":11180", "certification_file/201807my.crt", "private_key_file/ssl.pk", r)
+    //err := http.ListenAndServeTLS(":11180", "certification_file/201807openssl.crt", "private_key_file/ssl.pk", r)
     err := http.ListenAndServe(":11180", r);
     if (err != nil) {
         wlog.Print(err);
