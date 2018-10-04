@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	exe "os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -19,7 +20,7 @@ import (
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
 
-func main() {
+func interactiveShell() {
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
@@ -201,6 +202,18 @@ func main() {
 			panic("<Runtime Error>")
 		}
 	}
+}
+
+func main() {
+
+	go interactiveShell()
+	// シグナル用のチャネル定義
+	quit := make(chan os.Signal)
+	// 受け取るシグナルを設定
+	signal.Ignore(quit, os.Interrupt)
+	<-quit
+	fmt.Printf("%s", "シグナルを受信")
+	//interactiveShell()
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
