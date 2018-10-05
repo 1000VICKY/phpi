@@ -78,7 +78,42 @@ func interactiveShell() {
 	}
 	var scanner *bufio.Scanner = new(bufio.Scanner)
 	scanner = bufio.NewScanner(os.Stdin)
+	exit_chan := make(chan int)
+	signal_chan := make(chan os.Signal, 1)
+	// シグナルのチェック
+	signal.Notify(signal_chan,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 	for {
+		go func() {
+			s := <-signal_chan
+			switch s {
+			// kill -SIGHUP XXXX
+			case syscall.SIGHUP:
+				fmt.Println("hungup")
+				//exit_chan <- 0
+			// kill -SIGINT XXXX or Ctrl+c
+			case syscall.SIGINT:
+				fmt.Println("Warikomi")
+				//exit_chan <- 0
+			// kill -SIGTERM XXXX
+			case syscall.SIGTERM:
+				fmt.Println("force stop")
+				//exit_chan <- 0
+
+			// kill -SIGQUIT XXXX
+			case syscall.SIGQUIT:
+				fmt.Println("stop and core dump")
+				//exit_chan <- 0
+
+			default:
+				fmt.Println("Unknown signal.")
+				//exit_chan <- 1
+			}
+		}()
+
 		runtime.GC()
 		// ループ開始時に正常動作するソースのバックアップを取得
 		ff.Seek(0, 0)
@@ -201,19 +236,13 @@ func interactiveShell() {
 		} else {
 			panic("<Runtime Error>")
 		}
+		code := <-exit_chan
+		fmt.Println(code)
 	}
 }
 
 func main() {
-
-	go interactiveShell()
-	// シグナル用のチャネル定義
-	quit := make(chan os.Signal)
-	// 受け取るシグナルを設定
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-	fmt.Printf("%s", "シグナルを受信")
-
+	interactiveShell()
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
