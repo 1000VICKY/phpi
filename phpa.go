@@ -238,6 +238,7 @@ func interactiveShell() {
 		}
 		code := <-exit_chan
 		fmt.Println(code)
+		close(exit_chan);
 	}
 }
 
