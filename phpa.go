@@ -20,7 +20,36 @@ import (
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
 
-func interactiveShell() {
+func main() {
+	// プロセスの監視
+	signal_chan := make(chan os.Signal, 1)
+	signal.Notify(signal_chan,
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	exit_chan := make(chan int)
+	go func() {
+		for {
+			s := <-signal_chan
+			switch s {
+			case syscall.SIGHUP:
+				fmt.Printf("\r\nシェルを終了させるには<exit>と入力してください\r\n")
+			case syscall.SIGINT:
+				fmt.Printf("\r\nシェルを終了させるには<exit>と入力してください\r\n")
+			case syscall.SIGTERM:
+				fmt.Println("force stop")
+				exit_chan <- 0
+			case syscall.SIGQUIT:
+				fmt.Println("stop and core dump")
+				exit_chan <- 0
+			default:
+				fmt.Println("Unknown signal.")
+				exit_chan <- 1
+			}
+		}
+	}()
 	const initializer = "<?php " + "\n"
 	// 利用変数初期化
 	var input string
@@ -76,44 +105,8 @@ func interactiveShell() {
 		format(err)
 		os.Exit(255)
 	}
-	var scanner *bufio.Scanner = new(bufio.Scanner)
-	scanner = bufio.NewScanner(os.Stdin)
-	exit_chan := make(chan int)
-	signal_chan := make(chan os.Signal, 1)
-	// シグナルのチェック
-	signal.Notify(signal_chan,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
+	var scanner *bufio.Scanner = nil
 	for {
-		go func() {
-			s := <-signal_chan
-			switch s {
-			// kill -SIGHUP XXXX
-			case syscall.SIGHUP:
-				fmt.Println("hungup")
-				//exit_chan <- 0
-			// kill -SIGINT XXXX or Ctrl+c
-			case syscall.SIGINT:
-				fmt.Println("Warikomi")
-				//exit_chan <- 0
-			// kill -SIGTERM XXXX
-			case syscall.SIGTERM:
-				fmt.Println("force stop")
-				//exit_chan <- 0
-
-			// kill -SIGQUIT XXXX
-			case syscall.SIGQUIT:
-				fmt.Println("stop and core dump")
-				//exit_chan <- 0
-
-			default:
-				fmt.Println("Unknown signal.")
-				//exit_chan <- 1
-			}
-		}()
-
 		runtime.GC()
 		// ループ開始時に正常動作するソースのバックアップを取得
 		ff.Seek(0, 0)
@@ -127,10 +120,12 @@ func interactiveShell() {
 		if multiple == 1 {
 			myPrint("... ")
 		} else {
-			fmt.Printf("[%d]>>> ", count)
+			fmt.Printf("php > ")
 		}
+		scanner = bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		*line = scanner.Text()
+		scanner = nil
 
 		if *line == "del" {
 			ff, err = deleteFile(ff, "<?php ")
@@ -158,10 +153,8 @@ func interactiveShell() {
 				break
 			}
 			if runtime.GOOS == "windows" {
-				// C:\\aaa\\bbb\\save.php
 				currentDir += "\\save.php"
 			} else {
-				// /aaa/bbb/save.php
 				currentDir += "/save.php"
 			}
 			saveFp := new(os.File)
@@ -182,6 +175,8 @@ func interactiveShell() {
 			*line = ""
 			input = ""
 			continue
+		} else if *line == "exit" {
+			os.Exit(0)
 		} else if *line == "" {
 			// 空文字エンターの場合はループを飛ばす
 			continue
@@ -236,14 +231,9 @@ func interactiveShell() {
 		} else {
 			panic("<Runtime Error>")
 		}
-		code := <-exit_chan
-		fmt.Println(code)
-		close(exit_chan);
 	}
-}
-
-func main() {
-	interactiveShell()
+	code := <-exit_chan
+	os.Exit(code)
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
