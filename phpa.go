@@ -26,17 +26,7 @@ var myPrint func(...interface{}) (int, error) = fmt.Print
 var inputList map[string]string;
 
 func main() {
-    // コマンドライン入力記入
-    l, _ := readline.NewEx(&readline.Config{
-        Prompt:          "\033[32m php >\033[0m ",
-        HistoryFile:     "/tmp/readline.tmp",
-//      AutoComplete:    completer,
-//        InterruptPrompt: "^C",
-//        EOFPrompt:       "exit",
 
-//      HistorySearchFold:   true,
-//      FuncFilterInputRune: filterInput,
-    })
 
     // プロセスの監視
     signal_chan := make(chan os.Signal, 1)
@@ -124,6 +114,7 @@ func main() {
     }
     //var scanner *bufio.Scanner = bufio.NewScanner(os.Stdin)
     inputList = make(map[string]string);
+    var promptMessage *string = new(string);
     for {
         runtime.GC()
         // ループ開始時に正常動作するソースのバックアップを取得
@@ -136,13 +127,29 @@ func main() {
 
         ff.WriteAt(backup, 0)
         *line = "";
+        // コマンドライン入力記入
+        if (multiple == 1) {
+            *promptMessage = "\033[32m ... >\033[0m ";
+        } else {
+            *promptMessage = "\033[32m php >\033[0m ";
+        }
+        l, _ := readline.NewEx(&readline.Config{
+            Prompt:          *promptMessage,
+            HistoryFile:     "/tmp/readline.tmp",
+    //      AutoComplete:    completer,
+    //        InterruptPrompt: "^C",
+    //        EOFPrompt:       "exit",
+
+    //      HistorySearchFold:   true,
+    //      FuncFilterInputRune: filterInput,
+        });
         if multiple == 1 {
 /*
             gl := goline.NewGoLine(goline.StringPrompt("... "))
             data, _ := gl.Line();
             *line = data;
 */
-            *line, _ =  l.Readline();
+            *line, _ = l.Readline();
         } else {
 /*
             gl := goline.NewGoLine(goline.StringPrompt("php > "))
