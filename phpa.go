@@ -21,6 +21,7 @@ import (
 
 var format func(...interface{}) (int, error) = fmt.Println
 print("AAA");
+print("CCC");
 var myPrint func(...interface{}) (int, error) = fmt.Print
 print("BBB");
 
