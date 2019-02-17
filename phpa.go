@@ -20,6 +20,7 @@ import (
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
+print("AAA");
 var myPrint func(...interface{}) (int, error) = fmt.Print
 
 // 入力履歴を保持する
