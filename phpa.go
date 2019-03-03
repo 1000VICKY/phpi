@@ -86,7 +86,7 @@ func main() {
     *tentativeFile, err = filepath.Abs(ff.Name())
     if err != nil {
         format(err)
-        os.Exit(255)
+        os.Exit(255);
     }
     defer ff.Close()
     defer os.Remove(*tentativeFile)
