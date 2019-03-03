@@ -295,3 +295,5 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("アクセス中のURL" + getParameter);
     return;
 }
+
+// GOによるサーバープログラム
