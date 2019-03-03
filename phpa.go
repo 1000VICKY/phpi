@@ -15,6 +15,7 @@ import (
     "runtime/debug"
     "strings"
     "syscall"
+    // 未使用ライブラリ
     //"github.com/nemith/goline"
     "github.com/chzyer/readline"
 )
