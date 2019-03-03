@@ -297,3 +297,6 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GOによるサーバープログラム
+// GOによるサーバープログラム編集
+// リモートサーバ側で編集
+
