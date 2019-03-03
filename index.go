@@ -297,3 +297,4 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GOによるサーバープログラム
+// git の練習
