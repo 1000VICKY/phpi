@@ -136,13 +136,12 @@ func main() {
         }
         l, _ := readline.NewEx(&readline.Config{
             Prompt:          *promptMessage,
-            HistoryFile:     "/tmp/readline.tmp",
-    //      AutoComplete:    completer,
-    //        InterruptPrompt: "^C",
-    //        EOFPrompt:       "exit",
-
-    //      HistorySearchFold:   true,
-    //      FuncFilterInputRune: filterInput,
+            HistoryFile:     "./readline.tmp",
+            //AutoComplete:    completer,
+            //InterruptPrompt: "^C",
+            //EOFPrompt:       "exit",
+            //HistorySearchFold:   true,
+            //FuncFilterInputRune: filterInput,
         });
         if multiple == 1 {
 /*
@@ -282,7 +281,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     // (1)まずは終了コードを取得
     e = exe.Command("php", *filePath).Run()
     if e != nil {
-        fmt.Println("終了コードが0以外")
+        fmt.Println("<Could not get correct status code when source code which you wrote was run.>");
         var ok bool
         var exitError *exe.ExitError = nil
         var exitStatus int = 0
