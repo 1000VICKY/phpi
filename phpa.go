@@ -108,11 +108,21 @@ func main() {
     closeBrace, _ = regexp.Compile("^.*}.*$")
     // [save]というキーワードを入力した場合の正規表現
     var saveRegex *regexp.Regexp = new(regexp.Regexp)
-    saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
+    saveRegex, err = regexp.Compile("^[ ]*save[ ]*$");
     if err != nil {
         format(err)
         os.Exit(255)
     }
+    // ヒアドキュメントを入力された場合
+    var startHereDocument *regexp.Regexp = new (regexp.Regexp);
+    startHereDocument, err = regexp.Compile("<<< *([a-zA-Z0-9]+)$");
+    if err != nil {
+        format(err)
+        os.Exit(255)
+    }
+    var hereFlag bool = false;
+    var ID string = "";
+    var endHereDocument *regexp.Regexp = new (regexp.Regexp);
     //var scanner *bufio.Scanner = bufio.NewScanner(os.Stdin)
     inputList = make(map[string]string);
     var promptMessage *string = new(string);
@@ -158,6 +168,26 @@ func main() {
 */
             *line, _ =  l.Readline();
         }
+        // ヒアドキュメントで入力された場合
+        if (hereFlag == false) {
+            hereTag := startHereDocument.FindAllStringSubmatch(*line, -1);
+            if (len(hereTag) > 0 ) {
+                if (len(hereTag[0]) > 0) {
+                    ID = hereTag[0][1];
+                    hereFlag = true;
+                }
+            } else {
+                hereFlag = false;
+            }
+        } else {
+            endHereDocument, err = regexp.Compile("^" + ID + "[ ]*;$");
+            if endHereDocument.MatchString(*line) {
+                hereFlag = false;
+            } else {
+                hereFlag = true;
+            }
+        }
+
         //scanner.Scan()
         //*line = scanner.Text()
         if *line == "del" {
@@ -235,15 +265,21 @@ func main() {
         // ブレースによる複数入力フラグがfalseの場合
         if openCount == 0 && closeCount == 0 {
             multiple = 0
+            if (hereFlag == true) {
+                multiple = 1
+            } else if hereFlag == false {
+                multiple = 0;
+            }
         } else if openCount != closeCount {
             multiple = 1
         } else if openCount == closeCount {
             multiple = 0
             openCount = 0
-            closeCount = 0
+            closeCount = 0;
         } else {
             panic("Runtime Error happened!:")
         }
+
         input += *line + "\n"
         if multiple == 0 {
             ss, err = ff.Write([]byte(input))
