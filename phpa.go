@@ -27,8 +27,6 @@ var myPrint func(...interface{}) (int, error) = fmt.Print
 var inputList map[string]string;
 
 func main() {
-
-
     // プロセスの監視
     signal_chan := make(chan os.Signal, 1)
     signal.Notify(signal_chan,
@@ -140,9 +138,11 @@ func main() {
         *line = "";
         // コマンドライン入力記入
         if (multiple == 1) {
-            *promptMessage = "\033[32m ... >\033[0m ";
+            //*promptMessage = "\033[32m ... >\033[10m ";
+            *promptMessage = " ... ";
         } else {
-            *promptMessage = "\033[32m php >\033[0m ";
+            //*promptMessage = "\033[32m php >\033[10m ";
+            *promptMessage = " php > ";
         }
         l, _ := readline.NewEx(&readline.Config{
             Prompt:          *promptMessage,
@@ -317,7 +317,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     // (1)まずは終了コードを取得
     e = exe.Command("php", *filePath).Run()
     if e != nil {
-        fmt.Println("<Could not get correct status code when source code which you wrote was run.>");
+        fmt.Println("    <Could not get correct status code when source code which you wrote was run.>");
         var ok bool
         var exitError *exe.ExitError = nil
         var exitStatus int = 0
@@ -359,11 +359,15 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
         beforeOffset = len(strOutput)
     }
     strOutput = strOutput[beforeOffset:]
-    *index = len(strOutput) + beforeOffset
-    for key, value := range strOutput {
-        fmt.Println("    " + value)
-        strOutput[key] = ""
+    *index = len(strOutput) + beforeOffset;
+    var outPutConnecting *string = new(string);
+    for _, value := range strOutput {
+        //fmt.Println("    " + value)
+        //strOutput[key] = ""
+        *outPutConnecting += "    " + value + "\n";
     }
+    fmt.Println(*outPutConnecting);
+    outPutConnecting = nil;
     output = nil
     strOutput = nil
     fp.Write([]byte("echo(PHP_EOL);"))
