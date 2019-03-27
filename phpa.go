@@ -1,7 +1,7 @@
 package main
 
 import (
-//  "bufio"
+    "bufio"
     "errors"
     "fmt"
     _ "io"
@@ -15,16 +15,10 @@ import (
     "runtime/debug"
     "strings"
     "syscall"
-    // 未使用ライブラリ
-    //"github.com/nemith/goline"
-    "github.com/chzyer/readline"
 )
 
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
-
-// 入力履歴を保持する
-var inputList map[string]string;
 
 func main() {
     // プロセスの監視
@@ -41,9 +35,11 @@ func main() {
             s := <-signal_chan
             switch s {
             case syscall.SIGHUP:
-                fmt.Printf("\r\nシェルを終了させるには<exit>と入力してください\r\n")
+                fmt.Printf("[syscall.SIGHUP]Input a word `exit`, if you would like to exit this console.\r\n")
+            case os.Interrupt:
+                fmt.Printf("[os.Interrupt]Input a word `exit`, if you would like to exit this console.\r\n")
             case syscall.SIGINT:
-                fmt.Printf("\r\nシェルを終了させるには<exit>と入力してください\r\n")
+                fmt.Printf("[syscall.SIGINT]Input a word `exit`, if you would like to exit this console.\r\n")
             case syscall.SIGTERM:
                 fmt.Println("force stop")
                 exit_chan <- 0
@@ -85,7 +81,7 @@ func main() {
     *tentativeFile, err = filepath.Abs(ff.Name())
     if err != nil {
         format(err)
-        os.Exit(255);
+        os.Exit(255)
     }
     defer ff.Close()
     defer os.Remove(*tentativeFile)
@@ -106,7 +102,7 @@ func main() {
     closeBrace, _ = regexp.Compile("^.*}.*$")
     // [save]というキーワードを入力した場合の正規表現
     var saveRegex *regexp.Regexp = new(regexp.Regexp)
-    saveRegex, err = regexp.Compile("^[ ]*save[ ]*$");
+    saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
     if err != nil {
         format(err)
         os.Exit(255)
@@ -118,12 +114,11 @@ func main() {
         format(err)
         os.Exit(255)
     }
+    // ヒアドキュメントで入力された場合
     var hereFlag bool = false;
     var ID string = "";
     var endHereDocument *regexp.Regexp = new (regexp.Regexp);
-    //var scanner *bufio.Scanner = bufio.NewScanner(os.Stdin)
-    inputList = make(map[string]string);
-    var promptMessage *string = new(string);
+    var scanner *bufio.Scanner = nil
     for {
         runtime.GC()
         // ループ開始時に正常動作するソースのバックアップを取得
@@ -135,39 +130,16 @@ func main() {
         }
 
         ff.WriteAt(backup, 0)
-        *line = "";
-        // コマンドライン入力記入
-        if (multiple == 1) {
-            //*promptMessage = "\033[32m ... >\033[10m ";
-            *promptMessage = " ... ";
-        } else {
-            //*promptMessage = "\033[32m php >\033[10m ";
-            *promptMessage = " php > ";
-        }
-        l, _ := readline.NewEx(&readline.Config{
-            Prompt:          *promptMessage,
-            HistoryFile:     "./readline.tmp",
-            //AutoComplete:    completer,
-            //InterruptPrompt: "^C",
-            //EOFPrompt:       "exit",
-            //HistorySearchFold:   true,
-            //FuncFilterInputRune: filterInput,
-        });
         if multiple == 1 {
-/*
-            gl := goline.NewGoLine(goline.StringPrompt("... "))
-            data, _ := gl.Line();
-            *line = data;
-*/
-            *line, _ = l.Readline();
+            myPrint(" ... ")
         } else {
-/*
-            gl := goline.NewGoLine(goline.StringPrompt("php > "))
-            data, _ := gl.Line();
-            *line = data;
-*/
-            *line, _ =  l.Readline();
+            myPrint("php > ")
         }
+        scanner = bufio.NewScanner(os.Stdin)
+        scanner.Scan()
+        *line = scanner.Text()
+        scanner = nil
+
         // ヒアドキュメントで入力された場合
         if (hereFlag == false) {
             hereTag := startHereDocument.FindAllStringSubmatch(*line, -1);
@@ -188,8 +160,7 @@ func main() {
             }
         }
 
-        //scanner.Scan()
-        //*line = scanner.Text()
+
         if *line == "del" {
             ff, err = deleteFile(ff, "<?php ")
             if err != nil {
@@ -242,7 +213,6 @@ func main() {
             os.Exit(0)
         } else if *line == "" {
             // 空文字エンターの場合はループを飛ばす
-//          fmt.Println("\n");
             continue
         }
 
@@ -275,11 +245,10 @@ func main() {
         } else if openCount == closeCount {
             multiple = 0
             openCount = 0
-            closeCount = 0;
+            closeCount = 0
         } else {
             panic("Runtime Error happened!:")
         }
-
         input += *line + "\n"
         if multiple == 0 {
             ss, err = ff.Write([]byte(input))
@@ -317,7 +286,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     // (1)まずは終了コードを取得
     e = exe.Command("php", *filePath).Run()
     if e != nil {
-        fmt.Println("    <Could not get correct status code when source code which you wrote was run.>");
+        fmt.Println("終了コードが0以外")
         var ok bool
         var exitError *exe.ExitError = nil
         var exitStatus int = 0
@@ -359,15 +328,11 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
         beforeOffset = len(strOutput)
     }
     strOutput = strOutput[beforeOffset:]
-    *index = len(strOutput) + beforeOffset;
-    var outPutConnecting *string = new(string);
-    for _, value := range strOutput {
-        //fmt.Println("    " + value)
-        //strOutput[key] = ""
-        *outPutConnecting += "    " + value + "\n";
+    *index = len(strOutput) + beforeOffset
+    for key, value := range strOutput {
+        fmt.Println("    " + value)
+        strOutput[key] = ""
     }
-    fmt.Println(*outPutConnecting);
-    outPutConnecting = nil;
     output = nil
     strOutput = nil
     fp.Write([]byte("echo(PHP_EOL);"))
