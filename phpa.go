@@ -25,33 +25,82 @@ func main() {
     signal_chan := make(chan os.Signal, 1)
     signal.Notify(signal_chan,
         os.Interrupt,
+        os.Kill,
         syscall.SIGHUP,
         syscall.SIGINT,
         syscall.SIGTERM,
-        syscall.SIGQUIT)
-    exit_chan := make(chan int)
-    go func() {
+        syscall.SIGQUIT);
+
+    // シグナルを取得後終了フラグとするチャンネル
+    var exit_chan chan int;
+    exit_chan = make(chan int)
+    go func(sig chan os.Signal, exit chan int) {
+        var s os.Signal;
         for {
-            s := <-signal_chan
+            s, _ = <-sig;
+            if (s == syscall.SIGHUP) {
+                fmt.Printf("[syscall.SIGHUP]Input a word `exit`, if you would like to exit this console.\r\n")
+                // 割り込みを無視
+                exit <- 0;
+            } else if (s == os.Kill) {
+                fmt.Printf("[os.Kill]Input a word `exit`, if you would like to exit this console.\r\n")
+                // 割り込みを無視
+                exit <- 0;
+            } else if (s == os.Interrupt) {
+                fmt.Printf("[os.Interrupt]Input a word `exit`, if you would like to exit this console.\r\n")
+                // 割り込みを無視
+                exit <- 0;
+            } else if (s == syscall.SIGTERM) {
+                fmt.Println("Force stop.")
+                exit <- 1;
+            } else if (s == syscall.SIGQUIT) {
+                fmt.Println("Stop and core dump.");
+                exit <- 1;
+            }
+            /*
             switch s {
             case syscall.SIGHUP:
                 fmt.Printf("[syscall.SIGHUP]Input a word `exit`, if you would like to exit this console.\r\n")
+                // 割り込みを無視
+                //exit <- 0;
+            case os.Kill:
+                fmt.Printf("[os.Kill]Input a word `exit`, if you would like to exit this console.\r\n")
+                // 割り込みを無視
+                //exit <- 0
             case os.Interrupt:
                 fmt.Printf("[os.Interrupt]Input a word `exit`, if you would like to exit this console.\r\n")
+                // 割り込みを無視
+                //exit <- 0
             case syscall.SIGINT:
-                fmt.Printf("[syscall.SIGINT]Input a word `exit`, if you would like to exit this console.\r\n")
+                fmt.Printf("[syscall.SIGINT]Input a word `exit`, if you would like to exit this console.\r\n");
+                // 割り込みを無視
+                //exit <- 0
             case syscall.SIGTERM:
                 fmt.Println("force stop")
-                exit_chan <- 0
+                exit <- 1
             case syscall.SIGQUIT:
                 fmt.Println("stop and core dump")
-                exit_chan <- 0
+                exit <- 1
             default:
                 fmt.Println("Unknown signal.")
-                exit_chan <- 1
+                exit <- 1
+            }
+            */
+        }
+    }(signal_chan, exit_chan);
+
+    go func(exit chan int ) {
+        var code int = 0;
+        for {
+            code, _ = <-exit;
+            if (code == 1 ) {
+                os.Exit(code);
+            } else {
+                fmt.Print("Ignore signal.");
             }
         }
-    }()
+    }(exit_chan);
+
     const initializer = "<?php " + "\n"
     // 利用変数初期化
     var input string
@@ -271,8 +320,6 @@ func main() {
             panic("<Runtime Error>")
         }
     }
-    code := <-exit_chan
-    os.Exit(code)
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
