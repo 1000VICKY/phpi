@@ -158,7 +158,7 @@ func main() {
     }
     // ヒアドキュメントを入力された場合
     var startHereDocument *regexp.Regexp = new (regexp.Regexp);
-    startHereDocument, err = regexp.Compile("<<< *([a-zA-Z0-9]+)$");
+    startHereDocument, err = regexp.Compile("^.*<<< *([_a-zA-Z0-9]+)$");
     if err != nil {
         format(err)
         os.Exit(255)
@@ -218,7 +218,8 @@ func main() {
             }
             *line = ""
             input = ""
-            count = 0
+            count = 0;
+            debug.FreeOSMemory();
             continue
         } else if saveRegex.MatchString(*line) {
             /*
