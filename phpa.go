@@ -15,98 +15,45 @@ import (
     "runtime/debug"
     "strings"
     "syscall"
-)
+);
+import _"time";
+import _ "reflect";
+
+// 自作パッケージ
+import "./goroutine";
 
 var format func(...interface{}) (int, error) = fmt.Println
 var myPrint func(...interface{}) (int, error) = fmt.Print
 
 func main() {
     // プロセスの監視
-    signal_chan := make(chan os.Signal, 1)
-    signal.Notify(signal_chan,
+    signal_chan := make(chan os.Signal);
+    signal.Notify(
+        signal_chan,
         os.Interrupt,
         os.Kill,
         syscall.SIGHUP,
         syscall.SIGINT,
         syscall.SIGTERM,
-        syscall.SIGQUIT);
+        syscall.Signal(0x14),
+        syscall.SIGQUIT,
+    );
 
     // シグナルを取得後終了フラグとするチャンネル
     var exit_chan chan int;
-    exit_chan = make(chan int)
-    go func(sig chan os.Signal, exit chan int) {
-        var s os.Signal;
-        for {
-            s, _ = <-sig;
-            if (s == syscall.SIGHUP) {
-                fmt.Printf("[syscall.SIGHUP]Input a word `exit`, if you would like to exit this console.\r\n")
-                // 割り込みを無視
-                exit <- 0;
-            } else if (s == os.Kill) {
-                fmt.Printf("[os.Kill]Input a word `exit`, if you would like to exit this console.\r\n")
-                // 割り込みを無視
-                exit <- 0;
-            } else if (s == os.Interrupt) {
-                fmt.Printf("[os.Interrupt]Input a word `exit`, if you would like to exit this console.\r\n")
-                // 割り込みを無視
-                exit <- 0;
-            } else if (s == syscall.SIGTERM) {
-                fmt.Println("Force stop.")
-                exit <- 1;
-            } else if (s == syscall.SIGQUIT) {
-                fmt.Println("Stop and core dump.");
-                exit <- 1;
-            }
-            /*
-            switch s {
-            case syscall.SIGHUP:
-                fmt.Printf("[syscall.SIGHUP]Input a word `exit`, if you would like to exit this console.\r\n")
-                // 割り込みを無視
-                //exit <- 0;
-            case os.Kill:
-                fmt.Printf("[os.Kill]Input a word `exit`, if you would like to exit this console.\r\n")
-                // 割り込みを無視
-                //exit <- 0
-            case os.Interrupt:
-                fmt.Printf("[os.Interrupt]Input a word `exit`, if you would like to exit this console.\r\n")
-                // 割り込みを無視
-                //exit <- 0
-            case syscall.SIGINT:
-                fmt.Printf("[syscall.SIGINT]Input a word `exit`, if you would like to exit this console.\r\n");
-                // 割り込みを無視
-                //exit <- 0
-            case syscall.SIGTERM:
-                fmt.Println("force stop")
-                exit <- 1
-            case syscall.SIGQUIT:
-                fmt.Println("stop and core dump")
-                exit <- 1
-            default:
-                fmt.Println("Unknown signal.")
-                exit <- 1
-            }
-            */
-        }
-    }(signal_chan, exit_chan);
-
-    go func(exit chan int ) {
-        var code int = 0;
-        for {
-            code, _ = <-exit;
-            if (code == 1 ) {
-                os.Exit(code);
-            } else {
-                fmt.Print("Ignore signal.");
-            }
-        }
-    }(exit_chan);
+    exit_chan = make(chan int);
+    // シグナルを監視
+    go myPackage.MonitoringSignal(signal_chan, exit_chan);
+    // コンソールを停止するシグナルを握りつぶす
+    go myPackage.CrushingSignal(exit_chan);
+    go myPackage.RunningFreeOSMemory();
 
     const initializer = "<?php " + "\n"
     // 利用変数初期化
     var input string
     var line *string = new(string)
     var ff *os.File
-    var err error
+    var err error;
     var tentativeFile *string = new(string)
     var writtenByte *int = new(int)
     // ダミー実行ポインタ
@@ -165,11 +112,15 @@ func main() {
     }
     // ヒアドキュメントで入力された場合
     var hereFlag bool = false;
+    // マッチしたヒアドキュメントタグを取得するため
+    var hereTag [][]string = make([][]string, 1);
     var ID string = "";
     var endHereDocument *regexp.Regexp = new (regexp.Regexp);
-    var scanner *bufio.Scanner = nil
+    var scanner *bufio.Scanner = nil;
     for {
-        runtime.GC()
+        debug.SetGCPercent(100);
+        runtime.GC();
+        debug.FreeOSMemory();
         // ループ開始時に正常動作するソースのバックアップを取得
         ff.Seek(0, 0)
         backup, err = ioutil.ReadAll(ff)
@@ -184,14 +135,13 @@ func main() {
         } else {
             myPrint("php > ")
         }
-        scanner = bufio.NewScanner(os.Stdin)
-        scanner.Scan()
-        *line = scanner.Text()
-        scanner = nil
+        scanner = bufio.NewScanner(os.Stdin);
+        scanner.Scan();
+        *line = scanner.Text();
 
         // ヒアドキュメントで入力された場合
         if (hereFlag == false) {
-            hereTag := startHereDocument.FindAllStringSubmatch(*line, -1);
+            hereTag = startHereDocument.FindAllStringSubmatch(*line, -1);
             if (len(hereTag) > 0 ) {
                 if (len(hereTag[0]) > 0) {
                     ID = hereTag[0][1];
@@ -219,8 +169,7 @@ func main() {
             *line = ""
             input = ""
             count = 0;
-            debug.FreeOSMemory();
-            continue
+            continue;
         } else if saveRegex.MatchString(*line) {
             /*
                [save]コマンドが入力された場合，その時点まで入力されたスクリプトを
@@ -324,22 +273,28 @@ func main() {
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
+    runtime.GC();
+    debug.SetGCPercent(100);
     defer debug.FreeOSMemory()
     var strOutput []string = make([]string, 0)
     var output []byte = make([]byte, 0)
     var e error = nil
     var index *int = new(int)
-    runtime.GC()
     // バックグラウンドでPHPをコマンドラインで実行
     // (1)まずは終了コードを取得
     e = exe.Command("php", *filePath).Run()
     if e != nil {
         fmt.Println("終了コードが0以外")
-        var ok bool
+        var ok bool = true;
         var exitError *exe.ExitError = nil
-        var exitStatus int = 0
-        if exitError, ok = e.(*exe.ExitError); ok == true {
-            if s, ok := exitError.Sys().(syscall.WaitStatus); ok == true {
+        var exitStatus int = 0;
+        var s syscall.WaitStatus;
+        // 型アサーション
+        exitError, ok = e.(*exe.ExitError);
+        if (ok == true) {
+            // 型アサーション
+            s, ok = exitError.Sys().(syscall.WaitStatus);
+            if (ok == true) {
                 exitStatus = s.ExitStatus()
                 if exitStatus != 0 {
                     // スクリプトを実行した結果、実行失敗の場合
@@ -351,14 +306,13 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                         strOutput = strings.Split(castStr, "\n")[beforeOffset:]
                     }
                     for key, value := range strOutput {
-                        fmt.Println("    " + value)
+                        fmt.Println("     " + value)
                         strOutput[key] = ""
                     }
-                    fmt.Println("    " + e.Error())
+                    fmt.Println("     " + e.Error())
                     fp.Truncate(0)
                     fp.Seek(0, 0)
-                    fp.WriteAt(temporaryBackup, 0)
-                    debug.FreeOSMemory()
+                    fp.WriteAt(temporaryBackup, 0);
                     return beforeOffset, e
                 }
             } else {
@@ -367,30 +321,24 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
         }
     }
     output, _ = exe.Command("php", *filePath).Output()
-    /*
-        var s string = string(output);
-        var sarray []string = strings.Split(s, "\n");
-    */
     strOutput = strings.Split(string(output), "\n")
     if len(strOutput) < beforeOffset {
         beforeOffset = len(strOutput)
     }
     strOutput = strOutput[beforeOffset:]
-    *index = len(strOutput) + beforeOffset
-    for key, value := range strOutput {
-        fmt.Println("    " + value)
-        strOutput[key] = ""
+    *index = len(strOutput) + beforeOffset;
+    for _, value := range strOutput {
+        fmt.Print("     " + value + "\r\n");
+        value = "";
     }
     output = nil
-    strOutput = nil
+    strOutput = nil;
     fp.Write([]byte("echo(PHP_EOL);"))
-    // プログラムが確保したメモリを強制的にOSへ返却
-    debug.FreeOSMemory()
-    //fmt.Println("    " + strconv.Itoa(*index) + "byte")
     return *index, e
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
+    runtime.GC();
     defer debug.FreeOSMemory()
     var size int
     var err error
