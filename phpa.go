@@ -40,8 +40,7 @@ func main() {
     );
 
     // シグナルを取得後終了フラグとするチャンネル
-    var exit_chan chan int;
-    exit_chan = make(chan int);
+    var exit_chan chan int = make(chan int );
     // シグナルを監視
     go myPackage.MonitoringSignal(signal_chan, exit_chan);
     // コンソールを停止するシグナルを握りつぶす
@@ -183,7 +182,7 @@ func main() {
             currentDir, err = filepath.Abs(currentDir)
             if err != nil {
                 format(err)
-                break
+                break;
             }
             if runtime.GOOS == "windows" {
                 currentDir += "\\save.php"
@@ -273,8 +272,8 @@ func main() {
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
-    runtime.GC();
     debug.SetGCPercent(100);
+    runtime.GC();
     defer debug.FreeOSMemory()
     var strOutput []string = make([]string, 0)
     var output []byte = make([]byte, 0)
@@ -327,9 +326,10 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     }
     strOutput = strOutput[beforeOffset:]
     *index = len(strOutput) + beforeOffset;
-    for _, value := range strOutput {
-        fmt.Print("     " + value + "\r\n");
-        value = "";
+    var value *string = new(string);
+    for _, *value = range strOutput {
+        fmt.Print("     " + *value + "\r\n");
+        *value = "";
     }
     output = nil
     strOutput = nil;

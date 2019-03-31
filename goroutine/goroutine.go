@@ -5,9 +5,12 @@ import "os";
 import "fmt";
 import
 "syscall";
-import "time";
-import "runtime";
-import "runtime/debug";
+import
+"time";
+import
+"runtime";
+import
+"runtime/debug";
 
 func MonitoringSignal(sig chan os.Signal, exit chan int) {
     var s os.Signal;
@@ -50,6 +53,7 @@ func CrushingSignal(exit chan int ) {
         }
     }
 };
+
 func RunningFreeOSMemory() {
     // 定期時間ごとにガベージコレクションを動作させる
     for

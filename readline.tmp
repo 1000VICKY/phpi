@@ -70,3 +70,25 @@ exit
 test();
 phpinfo();
 exit
+{
+}
+{
+$hoge = function () {
+echo __FUNCTION__;
+};
+}
+var_dump($hoge());
+echo <<< EOF
+ヒアドキュメント
+EOF
+EOF;
+echo <<< EOF
+here document
+EOF;
+$here  = <<< EOL
+ヒアドキュメント
+EOL;
+var_dump($here);
+phpinfo();
+{
+}
