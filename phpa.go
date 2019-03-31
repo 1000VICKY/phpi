@@ -17,7 +17,7 @@ import (
     "syscall"
 );
 import _"time";
-import _ "reflect";
+import  "reflect";
 
 // 自作パッケージ
 import "./goroutine";
@@ -281,9 +281,9 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     var index *int = new(int)
     // バックグラウンドでPHPをコマンドラインで実行
     // (1)まずは終了コードを取得
-    e = exe.Command("php", *filePath).Run()
+    //e = exe.Command("php", *filePath).Run()
+    output, e = exe.Command("php", *filePath).Output();
     if e != nil {
-        fmt.Println("終了コードが0以外")
         var ok bool = true;
         var exitError *exe.ExitError = nil
         var exitStatus int = 0;
@@ -297,17 +297,16 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                 exitStatus = s.ExitStatus()
                 if exitStatus != 0 {
                     // スクリプトを実行した結果、実行失敗の場合
-                    output, e = exe.Command("php", *filePath).Output()
                     castStr := string(output)
                     // 改行で区切って[]string型に代入する
                     strOutput = strings.Split(castStr, "\n")
                     if len(strOutput) >= beforeOffset {
                         strOutput = strings.Split(castStr, "\n")[beforeOffset:]
                     }
-                    for key, value := range strOutput {
+                    for _, value := range strOutput {
                         fmt.Println("     " + value)
-                        strOutput[key] = ""
                     }
+                    strOutput =nil;
                     fmt.Println("     " + e.Error())
                     fp.Truncate(0)
                     fp.Seek(0, 0)
@@ -319,7 +318,6 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
             }
         }
     }
-    output, _ = exe.Command("php", *filePath).Output()
     strOutput = strings.Split(string(output), "\n")
     if len(strOutput) < beforeOffset {
         beforeOffset = len(strOutput)
