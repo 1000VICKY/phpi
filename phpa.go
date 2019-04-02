@@ -17,26 +17,28 @@ import (
     "syscall"
 );
 import _"time";
-import  "reflect";
+import  _"reflect";
 
 // 自作パッケージ
 import "./goroutine";
 
 var format func(...interface{}) (int, error) = fmt.Println
-var myPrint func(...interface{}) (int, error) = fmt.Print
-
+var myPrint func(...interface{}) (int, error) = fmt.Print;
+var signal_chan chan os.Signal;
 func main() {
     // プロセスの監視
-    signal_chan := make(chan os.Signal);
+    signal_chan = make(chan os.Signal);
     signal.Notify(
         signal_chan,
         os.Interrupt,
         os.Kill,
+        syscall.SIGKILL,
         syscall.SIGHUP,
         syscall.SIGINT,
         syscall.SIGTERM,
-        syscall.Signal(0x14),
         syscall.SIGQUIT,
+        syscall.Signal(0x13),
+        syscall.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
     );
 
     // シグナルを取得後終了フラグとするチャンネル
@@ -47,7 +49,8 @@ func main() {
     go myPackage.CrushingSignal(exit_chan);
     go myPackage.RunningFreeOSMemory();
 
-    const initializer = "<?php " + "\n"
+    // 実行するPHPスクリプトの初期化
+    const initializer = "<?php " + "\n" + "ini_set(\"display_errors\", 1); ini_set(\"error_reporting\", -1);\n"
     // 利用変数初期化
     var input string
     var line *string = new(string)
@@ -75,7 +78,7 @@ func main() {
     // ファイルポインタオブジェクトから絶対パスを取得する
     *tentativeFile, err = filepath.Abs(ff.Name())
     if err != nil {
-        format(err)
+        format(err.Error())
         os.Exit(255)
     }
     defer ff.Close()
@@ -99,14 +102,14 @@ func main() {
     var saveRegex *regexp.Regexp = new(regexp.Regexp)
     saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
     if err != nil {
-        format(err)
+        format(err.Error())
         os.Exit(255)
     }
     // ヒアドキュメントを入力された場合
     var startHereDocument *regexp.Regexp = new (regexp.Regexp);
     startHereDocument, err = regexp.Compile("^.*<<< *([_a-zA-Z0-9]+)$");
     if err != nil {
-        format(err)
+        format(err.Error())
         os.Exit(255)
     }
     // ヒアドキュメントで入力された場合
@@ -145,6 +148,7 @@ func main() {
                 if (len(hereTag[0]) > 0) {
                     ID = hereTag[0][1];
                     hereFlag = true;
+                    fmt.Println("(" + ID + ")");
                 }
             } else {
                 hereFlag = false;
