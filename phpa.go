@@ -1,10 +1,10 @@
 package main
 
 import (
-    "bufio"
+    _"bufio"
     "errors"
     "fmt"
-    _ "io"
+    _"io"
     "io/ioutil"
     "os"
     exe "os/exec"
@@ -22,10 +22,10 @@ import  _"reflect";
 // 自作パッケージ
 import "./goroutine";
 
-var format func(...interface{}) (int, error) = fmt.Println
-var myPrint func(...interface{}) (int, error) = fmt.Print;
-var signal_chan chan os.Signal;
 func main() {
+    var pln func(...interface{}) (int, error) = fmt.Println
+    var p func(...interface{}) (int, error) = fmt.Print;
+    var signal_chan chan os.Signal;
     // プロセスの監視
     signal_chan = make(chan os.Signal);
     signal.Notify(
@@ -61,24 +61,24 @@ func main() {
     // ダミー実行ポインタ
     ff, err = ioutil.TempFile("", "__php__main__")
     if err != nil {
-        format(err)
+        pln(err)
         os.Exit(255)
     }
     ff.Chmod(os.ModePerm)
     *writtenByte, err = ff.WriteAt([]byte(initializer), 0)
     if err != nil {
-        format(err)
+        pln(err)
         os.Exit(255)
     }
     // ファイルポインタに書き込まれたバイト数を検証する
     if *writtenByte != len(initializer) {
-        format("<スクリプトファイルの初期化に失敗しました.>")
+        pln("<スクリプトファイルの初期化に失敗しました.>")
         os.Exit(255)
     }
     // ファイルポインタオブジェクトから絶対パスを取得する
     *tentativeFile, err = filepath.Abs(ff.Name())
     if err != nil {
-        format(err.Error())
+        pln(err.Error())
         os.Exit(255)
     }
     defer ff.Close()
@@ -102,14 +102,14 @@ func main() {
     var saveRegex *regexp.Regexp = new(regexp.Regexp)
     saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
     if err != nil {
-        format(err.Error())
+        pln(err.Error())
         os.Exit(255)
     }
     // ヒアドキュメントを入力された場合
     var startHereDocument *regexp.Regexp = new (regexp.Regexp);
     startHereDocument, err = regexp.Compile("^.*<<< *([_a-zA-Z0-9]+)$");
     if err != nil {
-        format(err.Error())
+        pln(err.Error())
         os.Exit(255)
     }
     // ヒアドキュメントで入力された場合
@@ -118,7 +118,7 @@ func main() {
     var hereTag [][]string = make([][]string, 1);
     var ID string = "";
     var endHereDocument *regexp.Regexp = new (regexp.Regexp);
-    var scanner *bufio.Scanner = nil;
+//    var scanner *bufio.Scanner = nil;
     for {
         debug.SetGCPercent(100);
         runtime.GC();
@@ -127,19 +127,45 @@ func main() {
         ff.Seek(0, 0)
         backup, err = ioutil.ReadAll(ff)
         if err != nil {
-            format(err.Error())
+            pln(err.Error())
             break
         }
 
         ff.WriteAt(backup, 0)
         if multiple == 1 {
-            myPrint(" ... ")
+            p(" .... ")
         } else {
-            myPrint("php > ")
+            p("php > ")
         }
+        /*
         scanner = bufio.NewScanner(os.Stdin);
         scanner.Scan();
         *line = scanner.Text();
+        */
+        *line = "";
+
+        // 標準入力開始
+        func(s *string) {
+            var size int = 64;
+            var writtenSize int = 0;
+            var buffer []byte = make([]byte, size);
+            var err interface{};
+            for {
+                writtenSize, err = os.Stdin.Read(buffer);
+                value, ok := err.(error);
+                // 型アサーションの検証結果
+                if (ok == true && value != nil) {
+                    fmt.Print("[" + value.Error() + "]");
+                    break;
+                }
+                *s += string(buffer[:(writtenSize-1)]);
+                if (writtenSize < size) {
+                    break;
+                }
+            }
+            *s = strings.Trim(*s, "\r\n");
+            // 入力終了
+        }(line);
 
         // ヒアドキュメントで入力された場合
         if (hereFlag == false) {
@@ -166,7 +192,7 @@ func main() {
         if *line == "del" {
             ff, err = deleteFile(ff, "<?php ")
             if err != nil {
-                format(err)
+                pln(err)
                 os.Exit(255)
             }
             *line = ""
@@ -180,12 +206,12 @@ func main() {
             */
             currentDir, err = os.Getwd()
             if err != nil {
-                format(err)
+                pln(err)
                 os.Exit(255)
             }
             currentDir, err = filepath.Abs(currentDir)
             if err != nil {
-                format(err)
+                pln(err)
                 break;
             }
             if runtime.GOOS == "windows" {
@@ -196,7 +222,7 @@ func main() {
             saveFp := new(os.File)
             saveFp, err = os.Create(currentDir)
             if err != nil {
-                format(err)
+                pln(err)
                 continue
             }
             saveFp.Chmod(os.ModePerm)
@@ -206,7 +232,7 @@ func main() {
                 fmt.Println(err)
                 os.Exit(255)
             }
-            format(currentDir + ":入力した内容を保存しました。")
+            pln(currentDir + ":入力した内容を保存しました。")
             saveFp.Close()
             *line = ""
             input = ""
@@ -255,8 +281,8 @@ func main() {
         if multiple == 0 {
             ss, err = ff.Write([]byte(input))
             if err != nil {
-                format("<ファイルポインタへの書き込み失敗>")
-                format("    " + err.Error())
+                pln("<ファイルポインタへの書き込み失敗>")
+                pln("    " + err.Error())
                 continue
             }
             if ss > 0 {
