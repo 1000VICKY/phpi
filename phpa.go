@@ -2,8 +2,8 @@ package main
 
 import (
     _"bufio"
-    "errors"
-    "fmt"
+    _"errors"
+    _"fmt"
     _"io"
     "io/ioutil"
     "os"
@@ -17,15 +17,17 @@ import (
     "syscall"
 );
 import _"time";
-import  _"reflect";
+import _"reflect";
 
 // 自作パッケージ
 import "./goroutine";
 
+
+// メソッド値を変数に保持
+var echo func(b []byte) (int, error) = os.Stdout.Write;
 func main() {
-    var pln func(...interface{}) (int, error) = fmt.Println
-    var p func(...interface{}) (int, error) = fmt.Print;
     var signal_chan chan os.Signal;
+
     // プロセスの監視
     signal_chan = make(chan os.Signal);
     signal.Notify(
@@ -61,24 +63,24 @@ func main() {
     // ダミー実行ポインタ
     ff, err = ioutil.TempFile("", "__php__main__")
     if err != nil {
-        pln(err)
+        echo([]byte(err.Error() + "\r\n"));
         os.Exit(255)
     }
     ff.Chmod(os.ModePerm)
     *writtenByte, err = ff.WriteAt([]byte(initializer), 0)
     if err != nil {
-        pln(err)
+        echo([]byte(err.Error() + "\r\n"));
         os.Exit(255)
     }
     // ファイルポインタに書き込まれたバイト数を検証する
     if *writtenByte != len(initializer) {
-        pln("<スクリプトファイルの初期化に失敗しました.>")
-        os.Exit(255)
+        echo([]byte("<スクリプトファイルの初期化に失敗しました.>\r\n"));
+        os.Exit(255);
     }
     // ファイルポインタオブジェクトから絶対パスを取得する
     *tentativeFile, err = filepath.Abs(ff.Name())
     if err != nil {
-        pln(err.Error())
+        echo([]byte(err.Error() + "\r\n"));
         os.Exit(255)
     }
     defer ff.Close()
@@ -102,14 +104,14 @@ func main() {
     var saveRegex *regexp.Regexp = new(regexp.Regexp)
     saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
     if err != nil {
-        pln(err.Error())
+        echo([]byte(err.Error() + "\r\n"));
         os.Exit(255)
     }
     // ヒアドキュメントを入力された場合
     var startHereDocument *regexp.Regexp = new (regexp.Regexp);
     startHereDocument, err = regexp.Compile("^.*<<< *([_a-zA-Z0-9]+)$");
     if err != nil {
-        pln(err.Error())
+        echo([]byte(err.Error() + "\r\n"));
         os.Exit(255)
     }
     // ヒアドキュメントで入力された場合
@@ -118,7 +120,6 @@ func main() {
     var hereTag [][]string = make([][]string, 1);
     var ID string = "";
     var endHereDocument *regexp.Regexp = new (regexp.Regexp);
-//    var scanner *bufio.Scanner = nil;
     for {
         debug.SetGCPercent(100);
         runtime.GC();
@@ -127,21 +128,16 @@ func main() {
         ff.Seek(0, 0)
         backup, err = ioutil.ReadAll(ff)
         if err != nil {
-            pln(err.Error())
+            echo([]byte(err.Error() + "\r\n"));
             break
         }
 
         ff.WriteAt(backup, 0)
         if multiple == 1 {
-            p(" .... ")
+            echo([]byte(" .... "))
         } else {
-            p("php > ")
+            echo ([]byte("php > "));
         }
-        /*
-        scanner = bufio.NewScanner(os.Stdin);
-        scanner.Scan();
-        *line = scanner.Text();
-        */
         *line = "";
 
         // 標準入力開始
@@ -155,7 +151,7 @@ func main() {
                 value, ok := err.(error);
                 // 型アサーションの検証結果
                 if (ok == true && value != nil) {
-                    fmt.Print("[" + value.Error() + "]");
+                    echo ([]byte("[" + value.Error() + "]"));
                     break;
                 }
                 *s += string(buffer[:(writtenSize-1)]);
@@ -174,7 +170,7 @@ func main() {
                 if (len(hereTag[0]) > 0) {
                     ID = hereTag[0][1];
                     hereFlag = true;
-                    fmt.Println("(" + ID + ")");
+                    echo([]byte("(" + ID + ")" + "\r\n"));
                 }
             } else {
                 hereFlag = false;
@@ -192,7 +188,7 @@ func main() {
         if *line == "del" {
             ff, err = deleteFile(ff, "<?php ")
             if err != nil {
-                pln(err)
+                echo ([]byte(err.Error() + "\r\n"));
                 os.Exit(255)
             }
             *line = ""
@@ -200,18 +196,15 @@ func main() {
             count = 0;
             continue;
         } else if saveRegex.MatchString(*line) {
-            /*
-               [save]コマンドが入力された場合，その時点まで入力されたスクリプトを
-               カレントディレクトリに保存する
-            */
+            // saveキーワードが入力された場合
             currentDir, err = os.Getwd()
             if err != nil {
-                pln(err)
+                echo ([]byte(err.Error() + "\r\n"));
                 os.Exit(255)
             }
             currentDir, err = filepath.Abs(currentDir)
             if err != nil {
-                pln(err)
+                echo ([]byte(err.Error() + "\r\n"));
                 break;
             }
             if runtime.GOOS == "windows" {
@@ -222,17 +215,17 @@ func main() {
             saveFp := new(os.File)
             saveFp, err = os.Create(currentDir)
             if err != nil {
-                pln(err)
+                echo ([]byte(err.Error() + "\r\n"));
                 continue
             }
             saveFp.Chmod(os.ModePerm)
             *writtenByte, err = saveFp.WriteAt(backup, 0)
             if err != nil {
-                saveFp.Close()
-                fmt.Println(err)
+                saveFp.Close();
+                echo ([]byte(err.Error() + "\r\n"));
                 os.Exit(255)
             }
-            pln(currentDir + ":入力した内容を保存しました。")
+            echo ([]byte(currentDir + ":入力した内容を保存しました。"));
             saveFp.Close()
             *line = ""
             input = ""
@@ -281,8 +274,8 @@ func main() {
         if multiple == 0 {
             ss, err = ff.Write([]byte(input))
             if err != nil {
-                pln("<ファイルポインタへの書き込み失敗>")
-                pln("    " + err.Error())
+                echo([]byte("<ファイルポインタへの書き込み失敗>" + "\r\n"));
+                echo([]byte("    " + err.Error() + "\r\n"));
                 continue
             }
             if ss > 0 {
@@ -309,9 +302,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     var output []byte = make([]byte, 0)
     var e error = nil
     var index *int = new(int)
+
     // バックグラウンドでPHPをコマンドラインで実行
-    // (1)まずは終了コードを取得
-    //e = exe.Command("php", *filePath).Run()
     output, e = exe.Command("php", *filePath).Output();
     if e != nil {
         var ok bool = true;
@@ -334,17 +326,19 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                         strOutput = strings.Split(castStr, "\n")[beforeOffset:]
                     }
                     for _, value := range strOutput {
-                        fmt.Println("     " + value)
+                        // 標準出力へ書き込む
+                        echo ([]byte("     " + value + "\r\n"));
                     }
                     strOutput =nil;
-                    fmt.Println("     " + e.Error())
+                    echo ([]byte("     " + e.Error() + "\r\n"));
                     fp.Truncate(0)
                     fp.Seek(0, 0)
                     fp.WriteAt(temporaryBackup, 0);
                     return beforeOffset, e
                 }
             } else {
-                panic(errors.New("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus."))
+                panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.");
+                //panic(errors.New());
             }
         }
     }
@@ -356,7 +350,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     *index = len(strOutput) + beforeOffset;
     var value *string = new(string);
     for _, *value = range strOutput {
-        fmt.Print("     " + *value + "\r\n");
+        // 標準出力へ書き込む
+        echo ([]byte("     " + *value + "\r\n"));
         *value = "";
     }
     output = nil
@@ -375,8 +370,9 @@ func deleteFile(fp *os.File, initialString string) (*os.File, error) {
     size, err = fp.WriteAt([]byte(initialString), 0)
     fp.Seek(0, 0)
     if err == nil && size == len(initialString) {
-        return fp, err
+        return fp, err;
     } else {
-        return fp, errors.New("一時ファイルの初期化に失敗しました。")
+        return fp, err;
+        //return fp, errors.New("一時ファイルの初期化に失敗しました。")
     }
 }
