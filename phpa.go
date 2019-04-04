@@ -179,7 +179,7 @@ func main() {
             endHereDocument, err = regexp.Compile("^" + ID + "[ ]*;$");
             if endHereDocument.MatchString(*line) {
                 hereFlag = false;
-                *line += "\r\n echo(PHP_EOL);";
+                //*line += "\r\necho(PHP_EOL);";
             } else {
                 hereFlag = true;
             }
@@ -338,19 +338,15 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                     }
                     command.Wait();
                     fp.Truncate(0)
-                    fp.Seek(0, 0)
+                    fp.Seek(0, 0);
                     fp.WriteAt(temporaryBackup, 0);
                     command = nil;
                     stdout = nil;
                     return beforeOffset, e
-                } else {
-                    fmt.Println(exitStatus);
                 }
             } else {
                 panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.");
             }
-        } else {
-            fmt.Println("型アサーションに失敗。");
         }
     }
     command := exe.Command("php", *filePath);
