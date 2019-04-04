@@ -1,7 +1,7 @@
 package main
 
 import (
-    _"bufio"
+    "bufio"
     _"errors"
     "fmt"
     _"io"
@@ -179,6 +179,7 @@ func main() {
             endHereDocument, err = regexp.Compile("^" + ID + "[ ]*;$");
             if endHereDocument.MatchString(*line) {
                 hereFlag = false;
+                *line += "\r\n echo(PHP_EOL);";
             } else {
                 hereFlag = true;
             }
@@ -298,14 +299,10 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     debug.SetGCPercent(100);
     runtime.GC();
     defer debug.FreeOSMemory()
-    var strOutput []string = make([]string, 0)
-    var output []byte = make([]byte, 0)
     var e error = nil
-    var index *int = new(int)
 
     // バックグラウンドでPHPをコマンドラインで実行
-    command := exe.Command("php", *filePath);
-    stdout , e := command.StdoutPipe();
+    e = exe.Command("php", *filePath).Run();
     if e != nil {
         var ok bool = true;
         var exitError *exe.ExitError = nil
@@ -319,75 +316,62 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
             if (ok == true) {
                 exitStatus = s.ExitStatus()
                 if exitStatus != 0 {
-                    // スクリプトを実行した結果、実行失敗の場合
-                    castStr := string(output)
-                    // 改行で区切って[]string型に代入する
-                    strOutput = strings.Split(castStr, "\n")
-                    if len(strOutput) >= beforeOffset {
-                        strOutput = strings.Split(castStr, "\n")[beforeOffset:]
+                    command := exe.Command("php", *filePath);
+                    stdout, _ := command.StdoutPipe();
+                    command.Start();
+                    scanner := bufio.NewScanner(stdout);
+                    var ii int = 0;
+                    for scanner.Scan() {
+                        if ii >= beforeOffset {
+                            fmt.Println("     " + scanner.Text());
+                        }
+                        ii++;
                     }
-                    for _, value := range strOutput {
-                        // 標準出力へ書き込む
-                        echo ([]byte("     " + value + "\r\n"));
+                    if (beforeOffset > ii) {
+                        command = exe.Command("php", *filePath);
+                        stdout, _ := command.StdoutPipe();
+                        command.Start();
+                        scanner = bufio.NewScanner(stdout);
+                        for scanner.Scan() {
+                            fmt.Println("     " + scanner.Text());
+                        }
                     }
-                    strOutput =nil;
-                    echo ([]byte("     " + e.Error() + "\r\n"));
+                    command.Wait();
                     fp.Truncate(0)
                     fp.Seek(0, 0)
                     fp.WriteAt(temporaryBackup, 0);
+                    command = nil;
+                    stdout = nil;
                     return beforeOffset, e
+                } else {
+                    fmt.Println(exitStatus);
                 }
             } else {
                 panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.");
-                //panic(errors.New());
             }
+        } else {
+            fmt.Println("型アサーションに失敗。");
         }
+    }
+    command := exe.Command("php", *filePath);
+    stdout, ee := command.StdoutPipe();
+    if (ee != nil) {
+        panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.");
     }
     command.Start();
-    
-    //scanner := bufio.NewScanner(stdout)
-    var countByte = 0;
-    var readBuffer []byte = make([]byte, 1024);
-    for {
-        size, err := stdout.Read(readBuffer)
-        if (err != nil) {
-            break;
-        }
-        if beforeOffset <= ii {
-            fmt.Println(size);
-            fmt.Println(string(readBuffer[:size]));
-        }
-        countByte += size;
-    }
-    /*
+    scanner := bufio.NewScanner(stdout);
+    var ii int = 0;
     for scanner.Scan() {
-        if beforeOffset <= ii {
-            fmt.Println(scanner.Text());
+        if (ii >= beforeOffset) {
+            fmt.Println("     " + scanner.Text());
         }
         ii++;
-    }*/
-    *index = ii;
+    }
     command.Wait();
-    fmt.Println()
-    stdout = nil;
+    fmt.Print("\r\n");
     command = nil;
-    /*
-    strOutput = strings.Split(string(output), "\n")
-    if len(strOutput) < beforeOffset {
-        beforeOffset = len(strOutput)
-    }
-    strOutput = strOutput[beforeOffset:]
-    *index = len(strOutput) + beforeOffset;
-    var value *string = new(string);
-    for _, *value = range strOutput {
-        // 標準出力へ書き込む
-        echo ([]byte("     " + *value + "\r\n"));
-        *value = "";
-    }
-    output = nil
-    strOutput = nil;
+    stdout = nil;
     fp.Write([]byte("echo(PHP_EOL);"))
-    */
     return ii, e
 }
 
