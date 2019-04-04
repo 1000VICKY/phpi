@@ -359,7 +359,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     var ii int = 0;
     for scanner.Scan() {
         if (ii >= beforeOffset) {
-            fmt.Println("     " + scanner.Text());
+            echo ([]byte("     " + scanner.Text() + "\r\n"));
+            //fmt.Println("     " + scanner.Text());
         }
         ii++;
     }
