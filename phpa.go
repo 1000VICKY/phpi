@@ -3,7 +3,7 @@ package main
 import (
     _"bufio"
     _"errors"
-    _"fmt"
+    "fmt"
     _"io"
     "io/ioutil"
     "os"
@@ -304,7 +304,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     var index *int = new(int)
 
     // バックグラウンドでPHPをコマンドラインで実行
-    output, e = exe.Command("php", *filePath).Output();
+    command := exe.Command("php", *filePath);
+    stdout , e := command.StdoutPipe();
     if e != nil {
         var ok bool = true;
         var exitError *exe.ExitError = nil
@@ -342,6 +343,35 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
             }
         }
     }
+    command.Start();
+    
+    //scanner := bufio.NewScanner(stdout)
+    var countByte = 0;
+    var readBuffer []byte = make([]byte, 1024);
+    for {
+        size, err := stdout.Read(readBuffer)
+        if (err != nil) {
+            break;
+        }
+        if beforeOffset <= ii {
+            fmt.Println(size);
+            fmt.Println(string(readBuffer[:size]));
+        }
+        countByte += size;
+    }
+    /*
+    for scanner.Scan() {
+        if beforeOffset <= ii {
+            fmt.Println(scanner.Text());
+        }
+        ii++;
+    }*/
+    *index = ii;
+    command.Wait();
+    fmt.Println()
+    stdout = nil;
+    command = nil;
+    /*
     strOutput = strings.Split(string(output), "\n")
     if len(strOutput) < beforeOffset {
         beforeOffset = len(strOutput)
@@ -357,7 +387,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     output = nil
     strOutput = nil;
     fp.Write([]byte("echo(PHP_EOL);"))
-    return *index, e
+    */
+    return ii, e
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
