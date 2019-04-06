@@ -3,7 +3,7 @@ package main
 import (
     "bufio"
     _"errors"
-    "fmt"
+    _"fmt"
     _"io"
     "io/ioutil"
     "os"
@@ -14,20 +14,26 @@ import (
     "runtime"
     "runtime/debug"
     "strings"
-    "syscall"
 );
+import ("syscall");
 import _"time";
-import _"reflect";
+import (_"reflect");
 
 // 自作パッケージ
-import "./goroutine";
+import "phpa_with_go/goroutine";
 
 
-// メソッド値を変数に保持
-var echo func(b []byte) (int, error) = os.Stdout.Write;
+
+var echo func (string) (int, error) = func (s string) (int, error) {
+    // os.Stdout.Writeメソッドに渡す文字列を[]byteへ変換
+    var buffer []byte = []byte(s);
+    size, err := os.Stdout.Write(buffer);
+    // Writeメソッドの戻り値をそのまま返却
+    return size, err;
+};
+
 func main() {
     var signal_chan chan os.Signal;
-
     // プロセスの監視
     signal_chan = make(chan os.Signal);
     signal.Notify(
@@ -52,7 +58,12 @@ func main() {
     go myPackage.RunningFreeOSMemory();
 
     // 実行するPHPスクリプトの初期化
-    const initializer = "<?php " + "\n" + "ini_set(\"display_errors\", 1); ini_set(\"error_reporting\", -1);\n"
+    // バックティックでヒアドキュメント
+    const initializer = `
+    <?php
+        ini_set("display_errors", 1);
+        ini_set("error_reporting", -1);
+    `;
     // 利用変数初期化
     var input string
     var line *string = new(string)
@@ -63,24 +74,24 @@ func main() {
     // ダミー実行ポインタ
     ff, err = ioutil.TempFile("", "__php__main__")
     if err != nil {
-        echo([]byte(err.Error() + "\r\n"));
+        echo(err.Error() + "\r\n");
         os.Exit(255)
     }
     ff.Chmod(os.ModePerm)
     *writtenByte, err = ff.WriteAt([]byte(initializer), 0)
     if err != nil {
-        echo([]byte(err.Error() + "\r\n"));
+        echo(err.Error() + "\r\n");
         os.Exit(255)
     }
     // ファイルポインタに書き込まれたバイト数を検証する
     if *writtenByte != len(initializer) {
-        echo([]byte("<スクリプトファイルの初期化に失敗しました.>\r\n"));
+        echo("[Couldn't complete process to initialize script file.]\r\n");
         os.Exit(255);
     }
     // ファイルポインタオブジェクトから絶対パスを取得する
     *tentativeFile, err = filepath.Abs(ff.Name())
     if err != nil {
-        echo([]byte(err.Error() + "\r\n"));
+        echo(err.Error() + "\r\n");
         os.Exit(255)
     }
     defer ff.Close()
@@ -104,14 +115,14 @@ func main() {
     var saveRegex *regexp.Regexp = new(regexp.Regexp)
     saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
     if err != nil {
-        echo([]byte(err.Error() + "\r\n"));
+        echo(err.Error() + "\r\n");
         os.Exit(255)
     }
     // ヒアドキュメントを入力された場合
     var startHereDocument *regexp.Regexp = new (regexp.Regexp);
     startHereDocument, err = regexp.Compile("^.*<<< *([_a-zA-Z0-9]+)$");
     if err != nil {
-        echo([]byte(err.Error() + "\r\n"));
+        echo(err.Error() + "\r\n");
         os.Exit(255)
     }
     // ヒアドキュメントで入力された場合
@@ -120,179 +131,181 @@ func main() {
     var hereTag [][]string = make([][]string, 1);
     var ID string = "";
     var endHereDocument *regexp.Regexp = new (regexp.Regexp);
-    for {
-        debug.SetGCPercent(100);
-        runtime.GC();
-        debug.FreeOSMemory();
-        // ループ開始時に正常動作するソースのバックアップを取得
-        ff.Seek(0, 0)
-        backup, err = ioutil.ReadAll(ff)
-        if err != nil {
-            echo([]byte(err.Error() + "\r\n"));
-            break
-        }
-
-        ff.WriteAt(backup, 0)
-        if multiple == 1 {
-            echo([]byte(" .... "))
-        } else {
-            echo ([]byte("php > "));
-        }
-        *line = "";
-
-        // 標準入力開始
-        func(s *string) {
-            var size int = 64;
-            var writtenSize int = 0;
-            var buffer []byte = make([]byte, size);
-            var err interface{};
-            for {
-                writtenSize, err = os.Stdin.Read(buffer);
-                value, ok := err.(error);
-                // 型アサーションの検証結果
-                if (ok == true && value != nil) {
-                    echo ([]byte("[" + value.Error() + "]"));
-                    break;
-                }
-                *s += string(buffer[:(writtenSize-1)]);
-                if (writtenSize < size) {
-                    break;
-                }
+    var saveFp *os.File = new(os.File)
+        for {
+            debug.SetGCPercent(100);
+            runtime.GC();
+            debug.FreeOSMemory();
+            // ループ開始時に正常動作するソースのバックアップを取得
+            ff.Seek(0, 0)
+            backup, err = ioutil.ReadAll(ff)
+            if err != nil {
+                echo(err.Error() + "\r\n");
+                break
             }
-            *s = strings.Trim(*s, "\r\n");
-            // 入力終了
-        }(line);
 
-        // ヒアドキュメントで入力された場合
-        if (hereFlag == false) {
-            hereTag = startHereDocument.FindAllStringSubmatch(*line, -1);
-            if (len(hereTag) > 0 ) {
-                if (len(hereTag[0]) > 0) {
-                    ID = hereTag[0][1];
+            ff.WriteAt(backup, 0)
+            if multiple == 1 {
+                echo(" .... ")
+            } else {
+                echo ("php > ");
+            }
+            *line = "";
+
+            // 標準入力開始
+            func(s *string) {
+                var size int = 64;
+                var writtenSize int = 0;
+                var buffer []byte = make([]byte, size);
+                var err interface{};
+                var value error;
+                var ok bool;
+                for {
+                    writtenSize, err = os.Stdin.Read(buffer);
+                    value, ok = err.(error);
+                    // 型アサーションの検証結果
+                    if (ok == true && value != nil) {
+                        echo ("[" + value.Error() + "]");
+                        break;
+                    }
+                    *s += string(buffer[:(writtenSize)]);
+                    if (writtenSize < size) {
+                        break;
+                    }
+                }
+                *s = strings.Trim(*s, "\r\n");
+                // 入力終了
+            }(line);
+
+            // ヒアドキュメントで入力された場合
+            if (hereFlag == false) {
+                hereTag = startHereDocument.FindAllStringSubmatch(*line, -1);
+                if (len(hereTag) > 0 ) {
+                    if (len(hereTag[0]) > 0) {
+                        ID = hereTag[0][1];
+                        hereFlag = true;
+                        echo("(" + ID + ")" + "\r\n");
+                    }
+                } else {
+                    hereFlag = false;
+                }
+            } else {
+                endHereDocument, err = regexp.Compile("^" + ID + "[ ]*;$");
+                if endHereDocument.MatchString(*line) {
+                    hereFlag = false;
+                } else {
                     hereFlag = true;
-                    echo([]byte("(" + ID + ")" + "\r\n"));
                 }
-            } else {
-                hereFlag = false;
             }
-        } else {
-            endHereDocument, err = regexp.Compile("^" + ID + "[ ]*;$");
-            if endHereDocument.MatchString(*line) {
-                hereFlag = false;
-                //*line += "\r\necho(PHP_EOL);";
-            } else {
-                hereFlag = true;
-            }
-        }
 
 
-        if *line == "del" {
-            ff, err = deleteFile(ff, "<?php ")
-            if err != nil {
-                echo ([]byte(err.Error() + "\r\n"));
-                os.Exit(255)
-            }
-            *line = ""
-            input = ""
-            count = 0;
-            continue;
-        } else if saveRegex.MatchString(*line) {
-            // saveキーワードが入力された場合
-            currentDir, err = os.Getwd()
-            if err != nil {
-                echo ([]byte(err.Error() + "\r\n"));
-                os.Exit(255)
-            }
-            currentDir, err = filepath.Abs(currentDir)
-            if err != nil {
-                echo ([]byte(err.Error() + "\r\n"));
-                break;
-            }
-            if runtime.GOOS == "windows" {
-                currentDir += "\\save.php"
-            } else {
-                currentDir += "/save.php"
-            }
-            saveFp := new(os.File)
-            saveFp, err = os.Create(currentDir)
-            if err != nil {
-                echo ([]byte(err.Error() + "\r\n"));
-                continue
-            }
-            saveFp.Chmod(os.ModePerm)
-            *writtenByte, err = saveFp.WriteAt(backup, 0)
-            if err != nil {
-                saveFp.Close();
-                echo ([]byte(err.Error() + "\r\n"));
-                os.Exit(255)
-            }
-            echo ([]byte(currentDir + ":入力した内容を保存しました。"));
-            saveFp.Close()
-            *line = ""
-            input = ""
-            continue
-        } else if *line == "exit" {
-            os.Exit(0)
-        } else if *line == "" {
-            // 空文字エンターの場合はループを飛ばす
-            continue
-        }
-
-        //ob := openBrace.MatchString(*line)
-        ob := openBrace.FindAllStringSubmatch(*line, -1)
-        if len(ob) > 0 {
-            if len(ob[0]) > 0 {
-                //if ob == true {
-                openCount = openCount + len(ob[0])
-            }
-        }
-        //cb := closeBrace.MatchString(*line)
-        cb := closeBrace.FindAllStringSubmatch(*line, -1)
-        if len(cb) > 0 {
-            if len(cb[0]) > 0 {
-                //if cb == true {
-                closeCount = closeCount + len(cb[0])
-            }
-        }
-        // ブレースによる複数入力フラグがfalseの場合
-        if openCount == 0 && closeCount == 0 {
-            multiple = 0
-            if (hereFlag == true) {
-                multiple = 1
-            } else if hereFlag == false {
-                multiple = 0;
-            }
-        } else if openCount != closeCount {
-            multiple = 1
-        } else if openCount == closeCount {
-            multiple = 0
-            openCount = 0
-            closeCount = 0
-        } else {
-            panic("Runtime Error happened!:")
-        }
-        input += *line + "\n"
-        if multiple == 0 {
-            ss, err = ff.Write([]byte(input))
-            if err != nil {
-                echo([]byte("<ファイルポインタへの書き込み失敗>" + "\r\n"));
-                echo([]byte("    " + err.Error() + "\r\n"));
-                continue
-            }
-            if ss > 0 {
-                input = ""
-                *line = ""
-                count, err = tempFunction(ff, tentativeFile, count, backup)
+            if *line == "del" {
+                ff, err = deleteFile(ff, initializer)
                 if err != nil {
+                    echo (err.Error() + "\r\n");
+                    os.Exit(255)
+                }
+                *line = ""
+                input = ""
+                count = 0;
+                continue;
+            } else if saveRegex.MatchString(*line) {
+                // saveキーワードが入力された場合
+                currentDir, err = os.Getwd()
+                if err != nil {
+                    echo (err.Error() + "\r\n");
+                    os.Exit(255)
+                }
+                currentDir, err = filepath.Abs(currentDir)
+                if err != nil {
+                    echo (err.Error() + "\r\n");
+                    break;
+                }
+                // OSによってパスの差し替え
+                if runtime.GOOS == "windows" {
+                    currentDir += "\\save.php"
+                } else {
+                    currentDir += "/save.php"
+                }
+                saveFp, err = os.Create(currentDir)
+                if err != nil {
+                    echo (err.Error() + "\r\n");
                     continue
                 }
+                saveFp.Chmod(os.ModePerm)
+                *writtenByte, err = saveFp.WriteAt(backup, 0)
+                if err != nil {
+                    saveFp.Close();
+                    echo (err.Error() + "\r\n");
+                    os.Exit(255)
+                }
+                echo ("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n");
+                saveFp.Close()
+                *line = ""
+                input = ""
+                continue
+            } else if *line == "exit" {
+                os.Exit(0)
+            } else if *line == "" {
+                // 空文字エンターの場合はループを飛ばす
+                continue
             }
-        } else if multiple == 1 {
-            continue
-        } else {
-            panic("<Runtime Error>")
+
+            //ob := openBrace.MatchString(*line)
+            ob := openBrace.FindAllStringSubmatch(*line, -1)
+            if len(ob) > 0 {
+                if len(ob[0]) > 0 {
+                    //if ob == true {
+                    openCount = openCount + len(ob[0])
+                }
+            }
+            //cb := closeBrace.MatchString(*line)
+            cb := closeBrace.FindAllStringSubmatch(*line, -1)
+            if len(cb) > 0 {
+                if len(cb[0]) > 0 {
+                    //if cb == true {
+                    closeCount = closeCount + len(cb[0])
+                }
+            }
+            // ブレースによる複数入力フラグがfalseの場合
+            if openCount == 0 && closeCount == 0 {
+                multiple = 0
+                if (hereFlag == true) {
+                    multiple = 1
+                } else if hereFlag == false {
+                    multiple = 0;
+                }
+            } else if openCount != closeCount {
+                multiple = 1
+            } else if openCount == closeCount {
+                multiple = 0
+                openCount = 0
+                closeCount = 0
+            } else {
+                panic("Runtime Error happened!:")
+            }
+            input += *line + "\n"
+            if multiple == 0 {
+                ss, err = ff.Write([]byte(input))
+                if err != nil {
+                    echo("[Failed to write input code to file pointer.]" + "\r\n");
+                    echo("    " + err.Error() + "\r\n");
+                    continue
+                }
+                if ss > 0 {
+                    input = ""
+                    *line = ""
+                    count, err = tempFunction(ff, tentativeFile, count, backup)
+                    if err != nil {
+                        continue
+                    }
+                }
+            } else if multiple == 1 {
+                continue
+            } else {
+                panic("<Runtime Error>")
+            }
         }
-    }
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
@@ -300,7 +313,6 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     runtime.GC();
     defer debug.FreeOSMemory()
     var e error = nil
-
     // バックグラウンドでPHPをコマンドラインで実行
     e = exe.Command("php", *filePath).Run();
     if e != nil {
@@ -323,7 +335,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                     var ii int = 0;
                     for scanner.Scan() {
                         if ii >= beforeOffset {
-                            fmt.Println("     " + scanner.Text());
+                            echo ("     " + scanner.Text() + "\r\n");
                         }
                         ii++;
                     }
@@ -333,7 +345,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                         command.Start();
                         scanner = bufio.NewScanner(stdout);
                         for scanner.Scan() {
-                            fmt.Println("     " + scanner.Text());
+                            echo ("     " + scanner.Text() + "\r\n");
                         }
                     }
                     command.Wait();
@@ -357,15 +369,18 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     command.Start();
     scanner := bufio.NewScanner(stdout);
     var ii int = 0;
+    var scanText string;
     for scanner.Scan() {
         if (ii >= beforeOffset) {
-            echo ([]byte("     " + scanner.Text() + "\r\n"));
-            //fmt.Println("     " + scanner.Text());
+            scanText = scanner.Text();
+            if (len(scanText) > 0) {
+                echo ("     " + scanText + "\r\n");
+            }
         }
         ii++;
     }
     command.Wait();
-    fmt.Print("\r\n");
+    echo("\r\n");
     command = nil;
     stdout = nil;
     fp.Write([]byte("echo(PHP_EOL);"))
@@ -385,6 +400,5 @@ func deleteFile(fp *os.File, initialString string) (*os.File, error) {
         return fp, err;
     } else {
         return fp, err;
-        //return fp, errors.New("一時ファイルの初期化に失敗しました。")
     }
 }
