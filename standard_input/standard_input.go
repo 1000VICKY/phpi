@@ -1,5 +1,5 @@
 // 表示入力を実行
-package standardInput;
+package standard_input;
 
 import "os";
 import "strings";

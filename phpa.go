@@ -20,13 +20,16 @@ import _"time";
 import (_"reflect");
 
 // 自作パッケージ
-import "phpa_with_go/goroutine";
-import "phpa_with_go/standard_input";
-import "phpa_with_go/echo";
+import
+    "phpa_with_go/goroutine";
+import
+    "phpa_with_go/standard_input";
+import
+    "phpa_with_go/echo";
 
 func main() {
     var stdin (func(*string)) = nil;
-    var standard *standardInput.StandardInput = new (standardInput.StandardInput);
+    var standard *standard_input.StandardInput = new (standard_input.StandardInput);
     standard.SetStandardInputFunction();
     stdin = standard.GetStandardInputFunction();
 
@@ -49,10 +52,10 @@ func main() {
     // シグナルを取得後終了フラグとするチャンネル
     var exit_chan chan int = make(chan int );
     // シグナルを監視
-    go myPackage.MonitoringSignal(signal_chan, exit_chan);
+    go goroutine.MonitoringSignal(signal_chan, exit_chan);
     // コンソールを停止するシグナルを握りつぶす
-    go myPackage.CrushingSignal(exit_chan);
-    go myPackage.RunningFreeOSMemory();
+    go goroutine.CrushingSignal(exit_chan);
+    go goroutine.RunningFreeOSMemory();
 
     // 実行するPHPスクリプトの初期化
     // バックティックでヒアドキュメント

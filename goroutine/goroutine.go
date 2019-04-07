@@ -1,5 +1,5 @@
 // 自作パッケージ
-package myPackage;
+package goroutine;
 
 import "os";
 import "fmt";
