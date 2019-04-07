@@ -150,31 +150,6 @@ func main() {
 
             // 標準入力開始
             stdin(line);
-            /*
-            func(s *string) {
-                var size int = 64;
-                var writtenSize int = 0;
-                var buffer []byte = make([]byte, size);
-                var err interface{};
-                var value error;
-                var ok bool;
-                for {
-                    writtenSize, err = os.Stdin.Read(buffer);
-                    value, ok = err.(error);
-                    // 型アサーションの検証結果
-                    if (ok == true && value != nil) {
-                        echo.Echo ("[" + value.Error() + "]");
-                        break;
-                    }
-                    *s += string(buffer[:(writtenSize)]);
-                    if (writtenSize < size) {
-                        break;
-                    }
-                }
-                *s = strings.Trim(*s, "\r\n");
-                // 入力終了
-            }(line);
-            */
 
             // ヒアドキュメントで入力された場合
             if (hereFlag == false) {
@@ -327,6 +302,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
             if (ok == true) {
                 exitStatus = s.ExitStatus()
                 if exitStatus != 0 {
+                    var scanText string = "";
                     command := exe.Command("php", *filePath);
                     stdout, _ := command.StdoutPipe();
                     command.Start();
@@ -334,20 +310,28 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
                     var ii int = 0;
                     for scanner.Scan() {
                         if ii >= beforeOffset {
-                            echo.Echo ("     " + scanner.Text() + "\r\n");
+                            scanText = scanner.Text();
+                            if (len(scanText) > 0) {
+                                echo.Echo ("     " + scanner.Text() + "\r\n");
+                            }
                         }
                         ii++;
                     }
+
                     if (beforeOffset > ii) {
                         command = exe.Command("php", *filePath);
                         stdout, _ := command.StdoutPipe();
                         command.Start();
                         scanner = bufio.NewScanner(stdout);
                         for scanner.Scan() {
-                            echo.Echo ("     " + scanner.Text() + "\r\n");
+                            scanText = scanner.Text();
+                            if (len(scanText) > 0) {
+                                echo.Echo ("     " + scanner.Text() + "\r\n");
+                            }
                         }
                     }
                     command.Wait();
+                    echo.Echo("\r\n");
                     fp.Truncate(0)
                     fp.Seek(0, 0);
                     fp.WriteAt(temporaryBackup, 0);
