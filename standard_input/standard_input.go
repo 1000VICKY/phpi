@@ -3,7 +3,7 @@ package standard_input;
 
 import "os";
 import "strings";
-import "phpa_with_go/echo";
+import "phpa/echo";
 
 // 表示入力を実行する関数オブジェクトのみを保持する
 type StandardInput struct {

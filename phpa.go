@@ -21,11 +21,11 @@ import (_"reflect");
 
 // 自作パッケージ
 import
-    "phpa_with_go/goroutine";
+    "phpa/goroutine";
 import
-    "phpa_with_go/standard_input";
+    "phpa/standard_input";
 import
-    "phpa_with_go/echo";
+    "phpa/echo";
 
 func main() {
     var stdin (func(*string)) = nil;
