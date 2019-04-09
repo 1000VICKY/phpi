@@ -2,38 +2,37 @@
 package goroutine;
 
 import "os";
-import "fmt";
 import ("syscall");
 import ("time");
 import ("runtime");
 import ("runtime/debug");
-
+import ("phpa/echo");
 
 func MonitoringSignal(sig chan os.Signal, exit chan int) {
     var s os.Signal;
     for {
         s, _ = <-sig;
         if (s == syscall.SIGHUP) {
-            fmt.Printf("[syscall.SIGHUP]\r\n")
+            echo.Echo("[syscall.SIGHUP]\r\n")
             // 割り込みを無視
             exit <- 0;
         } else if (s == syscall.SIGTERM) {
-            fmt.Println("[syscall.SIGTERM].\r\n")
+            echo.Echo("[syscall.SIGTERM].\r\n")
             exit <- 1;
         } else if (s == os.Kill) {
-            fmt.Printf("[os.Kill].\r\n")
+            echo.Echo("[os.Kill].\r\n")
             // 割り込みを無視
             exit <- 0;
         } else if (s == os.Interrupt) {
-            fmt.Printf("[os.Interrupt].\r\n")
+            echo.Echo("[os.Interrupt].\r\n")
             // 割り込みを無視
             exit <- 0;
         } else if (s == syscall.Signal(0x14)) {
-            fmt.Printf("[syscall.SIGTSTP].\r\n")
+            echo.Echo("[syscall.SIGTSTP].\r\n")
             // 割り込みを無視
             exit <- 0;
         } else if (s == syscall.SIGQUIT) {
-            fmt.Println("[syscall.SIGQUIT].\r\n");
+            echo.Echo("[syscall.SIGQUIT].\r\n");
             exit <- 1;
         }
     }
@@ -46,7 +45,7 @@ func CrushingSignal(exit chan int ) {
         if (code == 1 ) {
             os.Exit(code);
         } else {
-            fmt.Println("[Ignored interrupt]");
+            echo.Echo("[Ignored interrupt]");
         }
     }
 };
