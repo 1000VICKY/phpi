@@ -1,4 +1,4 @@
-// +build windows
+// +build !windows
 
 package main
 
@@ -27,8 +27,8 @@ import "phpa/standard_input";
 import "phpa/echo";
 
 // syscallライブラリの代替ツール
-import "golang.org/x/sys/windows";
-import _"golang.org/x/sys/unix";
+import _"golang.org/x/sys/windows";
+import "golang.org/x/sys/unix";
 
 func main() {
     var stdin (func(*string)) = nil;
@@ -43,13 +43,13 @@ func main() {
         signal_chan,
         os.Interrupt,
         os.Kill,
-        windows.SIGKILL,
-        windows.SIGHUP,
-        windows.SIGINT,
-        windows.SIGTERM,
-        windows.SIGQUIT,
-        windows.Signal(0x13),
-        windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+        unix.SIGKILL,
+        unix.SIGHUP,
+        unix.SIGINT,
+        unix.SIGTERM,
+        unix.SIGQUIT,
+        unix.Signal(0x13),
+        unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
     );
 
     // シグナルを取得後終了フラグとするチャンネル
@@ -296,7 +296,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     if e != nil {
         // 実行したスクリプトの終了コードを取得
         var code bool = command.ProcessState.Success()
-        if code != true {
+        if code == false {
             var scanText string = "";
             command = exe.Command("php", *filePath);
             stdout, _ := command.StdoutPipe();
