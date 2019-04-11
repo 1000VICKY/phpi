@@ -21,14 +21,9 @@ func (self *StandardInput) SetBufferSize (size int ) {
 }
 // オブジェクトに標準入力関数を設定
 func (self *StandardInput) SetStandardInputFunction() {
-    var size int;
-    if ( (self.size > 0) != true) {
-        size = 64
-    } else {
-        size = self.size;
-    }
     // 無名関数を変数へ保持
     self.input = func(s *string) bool {
+        var size = 64;
         var writtenSize int = 0;
         var buffer []byte = make([]byte, size);
         var err interface{};

@@ -71,17 +71,17 @@ func main() {
 
 	// 実行するPHPスクリプトの初期化
 	// バックティックでヒアドキュメント
-	const initializer = "<?php " +
-		"ini_set(\"display_errors\", 1);" +
-		"ini_set(\"error_reporting\", -1);";
+	const initializer = "<?php \r\n" +
+		"ini_set(\"display_errors\", 1);\r\n" +
+		"ini_set(\"error_reporting\", -1);\r\n";
 
 	// 利用変数初期化
-	var input string
-	var line *string = new(string)
-	var ff *os.File
-	var err error
-	var tentativeFile *string = new(string)
-	var writtenByte *int = new(int)
+	var input string;
+	var line *string = new(string);
+	var ff *os.File;
+	var err error;
+	var tentativeFile *string = new(string);
+	var writtenByte *int = new(int);
 	// ダミー実行ポインタ
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
@@ -164,7 +164,7 @@ func main() {
 		*line = ""
 
 		// 標準入力開始
-		stdin(line)
+		stdin(line);
 
 		// ヒアドキュメントで入力された場合
 		if hereFlag == false {
@@ -291,8 +291,8 @@ func main() {
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
-	debug.SetGCPercent(100)
-	runtime.GC()
+	defer debug.SetGCPercent(100)
+	defer runtime.GC()
 	defer debug.FreeOSMemory()
 	var e error = nil
 	// バックグラウンドでPHPをコマンドラインで実行
@@ -346,7 +346,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 	command = exe.Command("php", *filePath)
 	stdout, ee := command.StdoutPipe()
 	if ee != nil {
-		echo.Echo(ee.Error())
+		echo.Echo(ee.Error() + "\r\n");
 		panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.")
 	}
 	command.Start()
@@ -362,18 +362,22 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 				}
 			}
 			ii++
+		} else {
+			break;
 		}
 	}
 	command.Wait()
 	command = nil
 	stdout = nil
+	scanText = "";
 	echo.Echo("\r\n")
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
 	return ii, e
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
-	runtime.GC()
+	defer debug.SetGCPercent(100)
+	defer runtime.GC()
 	defer debug.FreeOSMemory()
 	var err error
 	fp.Truncate(0)

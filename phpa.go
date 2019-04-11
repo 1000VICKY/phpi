@@ -68,9 +68,9 @@ func main() {
 
 	// 実行するPHPスクリプトの初期化
 	// バックティックでヒアドキュメント
-	const initializer = "<?php " +
-		"ini_set(\"display_errors\", 1);" +
-		"ini_set(\"error_reporting\", -1);";
+	const initializer = "<?php \r\n" +
+		"ini_set(\"display_errors\", 1);\r\n" +
+		"ini_set(\"error_reporting\", -1);\r\n";
 
 	// 利用変数初期化
 	var input string
@@ -287,8 +287,8 @@ func main() {
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
-	debug.SetGCPercent(100)
-	runtime.GC()
+	defer debug.SetGCPercent(100)
+	defer runtime.GC()
 	defer debug.FreeOSMemory()
 	var e error = nil
 	// バックグラウンドでPHPをコマンドラインで実行
@@ -342,11 +342,9 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 	command = exe.Command("php", *filePath)
 	stdout, ee := command.StdoutPipe()
 	if ee != nil {
-		echo.Echo(ee.Error())
+		echo.Echo(ee.Error() + "\r\n")
 		panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.")
 	}
-	command.Start()
-	scanner := bufio.NewScanner(stdout)
 	for
 	{
 		// 読み取り可能な場合
@@ -358,18 +356,22 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 				}
 			}
 			ii++
+		} else {
+			break;
 		}
 	}
 	command.Wait()
 	command = nil
 	stdout = nil
-	echo.Echo("\r\n")
-	fp.Write([]byte("echo(PHP_EOL);"))
+	scanText = "";
+	echo.Echo("\r\n");
+	fp.Write([]byte("echo(PHP_EOL);\r\n"))
 	return ii, e
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
-	runtime.GC()
+	defer debug.SetGCPercent(100)
+	defer runtime.GC()
 	defer debug.FreeOSMemory()
 	var err error
 	fp.Truncate(0)
