@@ -24,11 +24,15 @@ func MonitoringSignal(sig chan os.Signal, exit chan int) {
             // 割り込みを無視
             exit <- 0;
         } else if (s == os.Interrupt) {
-            echo.Echo("[os.Interrupt].\r\n")
+            if (runtime.GOOS != "darwin") {
+                echo.Echo("[os.Interrupt].\r\n")
+            }
             // 割り込みを無視
             exit <- 0;
         } else if (s == syscall.Signal(0x14)) {
-            echo.Echo("[syscall.SIGTSTP].\r\n")
+            if (runtime.GOOS != "darwin") {
+                echo.Echo("[syscall.SIGTSTP].\r\n")
+            }
             // 割り込みを無視
             exit <- 0;
         } else if (s == syscall.SIGQUIT) {
@@ -45,7 +49,9 @@ func CrushingSignal(exit chan int ) {
         if (code == 1 ) {
             os.Exit(code);
         } else {
-            echo.Echo("[Ignored interrupt]");
+            if (runtime.GOOS != "darwin") {
+                echo.Echo("[Ignored interrupt]");
+            }
         }
     }
 };

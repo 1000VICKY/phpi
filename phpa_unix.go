@@ -31,9 +31,11 @@ import _"golang.org/x/sys/windows";
 import "golang.org/x/sys/unix";
 
 func main() {
-    var stdin (func(*string)) = nil;
+    // 標準入力取得用関数を保持
+    var stdin (func(*string) bool) = nil;
     var standard *standard_input.StandardInput = new (standard_input.StandardInput);
     standard.SetStandardInputFunction();
+    standard.SetBufferSize(128);
     stdin = standard.GetStandardInputFunction();
 
     // プロセスの監視
@@ -48,6 +50,7 @@ func main() {
         unix.SIGINT,
         unix.SIGTERM,
         unix.SIGQUIT,
+        unix.SIGTSTP,
         unix.Signal(0x13),
         unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
     );
@@ -225,6 +228,7 @@ func main() {
             input = ""
             continue
         } else if *line == "exit" {
+            echo.Echo("[Will exit console.]\r\n")
             os.Exit(0)
         } else if *line == "" {
             // 空文字エンターの場合はループを飛ばす
@@ -259,7 +263,7 @@ func main() {
             openCount = 0
             closeCount = 0
         } else {
-            panic("Runtime Error happened!:")
+            panic("[Runtime Error happened!]\r\n")
         }
         input += *line + "\n"
         if multiple == 0 {
@@ -280,7 +284,7 @@ func main() {
         } else if multiple == 1 {
             continue
         } else {
-            panic("<Runtime Error>")
+            panic("[Runtime Error which system could not understand happeds.]\r\n")
         }
     }
 }
@@ -359,7 +363,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
     command = nil;
     stdout = nil;
     echo.Echo("\r\n");
-    fp.Write([]byte("echo(PHP_EOL);"))
+    fp.Write([]byte("echo(PHP_EOL);\r\n"))
     return ii, e
 }
 

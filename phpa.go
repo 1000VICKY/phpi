@@ -31,7 +31,7 @@ import "golang.org/x/sys/windows";
 import _"golang.org/x/sys/unix";
 
 func main() {
-    var stdin (func(*string)) = nil;
+    var stdin (func(*string) bool) = nil;
     var standard *standard_input.StandardInput = new (standard_input.StandardInput);
     standard.SetStandardInputFunction();
     stdin = standard.GetStandardInputFunction();
@@ -259,7 +259,7 @@ func main() {
             openCount = 0
             closeCount = 0
         } else {
-            panic("Runtime Error happened!:")
+            panic("[Runtime Error happened!]");
         }
         input += *line + "\n"
         if multiple == 0 {
@@ -280,7 +280,7 @@ func main() {
         } else if multiple == 1 {
             continue
         } else {
-            panic("<Runtime Error>")
+            panic("[Runtime Error which system could not understand happeds.]")
         }
     }
 }
