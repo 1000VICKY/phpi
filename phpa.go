@@ -29,9 +29,9 @@ import (
 
 // 自作パッケージ
 import "phpa/goroutine"
-import "phpa/standard_input"
+import "phpa/standardInput"
 import "phpa/echo";
-import "phpa/myreflect";
+import _"phpa/myreflect";
 
 // syscallライブラリの代替ツール
 import "golang.org/x/sys/windows"
@@ -39,7 +39,7 @@ import _ "golang.org/x/sys/unix"
 
 func main() {
     var stdin (func(*string) bool) = nil
-    var standard *standard_input.StandardInput = new(standard_input.StandardInput)
+    var standard *standardInput.StandardInput = new(standardInput.StandardInput)
     standard.SetStandardInputFunction()
     stdin = standard.GetStandardInputFunction()
 
@@ -119,10 +119,6 @@ func main() {
     var closeBrace *regexp.Regexp = new(regexp.Regexp)
     var closeCount int = 0
     openBrace, _ = regexp.Compile("^.*{[ \t]*.*$");
-    methodList, _ := myreflect.GetObjectMethods(openBrace);
-    for _, value := range methodList {
-        fmt.Println(value);
-    }
     closeBrace, _ = regexp.Compile("^.*}.*$")
     // [save]というキーワードを入力した場合の正規表現
     var saveRegex *regexp.Regexp = new(regexp.Regexp)

@@ -1,19 +1,29 @@
 package myreflect;
 
+import _"fmt";
 import "errors";
 import "reflect";
+
 /**
+ * PHPのget_class_methodsを再現
  * 指定したオブジェクトが持つpublicなメソッド一覧を取得する
  *
  */
 func GetObjectMethods(s interface{}) ([]string, error) {
-    var t reflect.Type = reflect.TypeOf(s);
-    var v reflect.Value = reflect.New(t).Elem();
-    var methodCount int = v.NumMethod();
+    var typeObj reflect.Type = reflect.TypeOf(s);
+
+    var valueObj reflect.Value = reflect.New(typeObj).Elem();
+    // 指定した型が持つpublicなメソッドの件数を取得
+    var methodCount int = valueObj.NumMethod();
     var methodList []string = make([]string, methodCount);
+
+    var typeInLoop reflect.Type;
+    var methodInLoop reflect.Method;
     for i := 0; i < methodCount; i++ {
-        typeInLoop := v.Type();
-        methodInLoop := typeInLoop.Method(i);
+        // reflect.Type型
+        typeInLoop = valueObj.Type();
+        // reflect.Method型
+        methodInLoop = typeInLoop.Method(i);
         methodList = append(methodList, methodInLoop.Name);
     }
     if (len(methodList) > 0) {
