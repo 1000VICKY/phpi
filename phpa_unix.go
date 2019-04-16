@@ -1,4 +1,4 @@
-// +build !windows
+// +build darwin
 
 package main
 
@@ -12,38 +12,50 @@ import (
 	exe "os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
+	"phpa/echo"
+	"phpa/goroutine"
+	"phpa/standardInput"
+	_ "reflect"
+	. "regexp"
 	"runtime"
 	"runtime/debug"
-)
-import (
 	_ "strings"
-)
-import (
 	_ "syscall"
-)
-import _ "time"
-import (
-	_ "reflect"
-)
+	_ "time"
 
-// 自作パッケージ
-import "phpa/goroutine"
-import "phpa/standard_input"
-import "phpa/echo"
+	// 自作パッケージ
 
-// syscallライブラリの代替ツール
-import _ "golang.org/x/sys/windows"
-import "golang.org/x/sys/unix"
+	_ "phpa/myreflect"
+
+	// syscallライブラリの代替ツール
+
+	"golang.org/x/sys/unix"
+)
 
 func main() {
-	// 標準入力取得用関数を保持
+
 	var stdin (func(*string) bool) = nil
-	var standard *standard_input.StandardInput = new(standard_input.StandardInput)
+	var standard *standardInput.StandardInput = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
-	standard.SetBufferSize(128)
 	stdin = standard.GetStandardInputFunction()
 
+	/*
+		// プロセスの監視
+		var signal_chan chan os.Signal = make(chan os.Signal)
+		// OSによってシグナルのパッケージを変更
+		signal.Notify(
+			signal_chan,
+			os.Interrupt,
+			os.Kill,
+			windows.SIGKILL,
+			windows.SIGHUP,
+			windows.SIGINT,
+			windows.SIGTERM,
+			windows.SIGQUIT,
+			windows.Signal(0x13),
+			windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		)
+	*/
 	// プロセスの監視
 	var signal_chan chan os.Signal = make(chan os.Signal)
 	// OSによってシグナルのパッケージを変更
@@ -73,15 +85,19 @@ func main() {
 	// バックティックでヒアドキュメント
 	const initializer = "<?php \r\n" +
 		"ini_set(\"display_errors\", 1);\r\n" +
-		"ini_set(\"error_reporting\", -1);\r\n";
+		"ini_set(\"error_reporting\", -1);\r\n"
 
 	// 利用変数初期化
-	var input string;
-	var line *string = new(string);
-	var ff *os.File;
-	var err error;
-	var tentativeFile *string = new(string);
-	var writtenByte *int = new(int);
+	var input string
+	var line *string = new(string)
+	line = new(string)
+	var tentativeFile *string
+	tentativeFile = new(string)
+	var ff *os.File
+	var err error
+	var writtenByte *int
+	writtenByte = new(int)
+
 	// ダミー実行ポインタ
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
@@ -114,24 +130,22 @@ func main() {
 	var backup []byte = make([]byte, 0)
 	var currentDir string
 
-	// 末尾はバックスラッシュの場合，以降再びバックスラッシュで終わるまで
-	// スクリプトを実行しない
-	var openBrace *regexp.Regexp = new(regexp.Regexp)
-	var openCount int = 0
-	var closeBrace *regexp.Regexp = new(regexp.Regexp)
-	var closeCount int = 0
-	openBrace, _ = regexp.Compile("^.*{[ \t]*.*$")
-	closeBrace, _ = regexp.Compile("^.*}.*$")
-	// [save]というキーワードを入力した場合の正規表現
-	var saveRegex *regexp.Regexp = new(regexp.Regexp)
-	saveRegex, err = regexp.Compile("^[ ]*save[ ]*$")
-	if err != nil {
-		echo.Echo(err.Error() + "\r\n")
-		os.Exit(255)
-	}
+	// 開き括弧
+	var openBrace *Regexp
+	openBrace = new(Regexp)
+	var openCount int
+	openCount = 0
+	// 閉じ括弧
+	var closeBrace *Regexp
+	closeBrace = new(Regexp)
+	var closeCount int
+	closeCount = 0
+	openBrace, _ = Compile("^.*{[ \t]*.*$")
+	closeBrace, _ = Compile("^.*}.*$")
 	// ヒアドキュメントを入力された場合
-	var startHereDocument *regexp.Regexp = new(regexp.Regexp)
-	startHereDocument, err = regexp.Compile("^.*<<< *([_a-zA-Z0-9]+)$")
+	var startHereDocument *Regexp
+	startHereDocument = new(Regexp)
+	startHereDocument, err = Compile("^.*<<<[ ]*([_a-zA-Z0-9]+)$")
 	if err != nil {
 		echo.Echo(err.Error() + "\r\n")
 		os.Exit(255)
@@ -141,11 +155,12 @@ func main() {
 	// マッチしたヒアドキュメントタグを取得するため
 	var hereTag [][]string = make([][]string, 1)
 	var ID string = ""
-	var endHereDocument *regexp.Regexp = new(regexp.Regexp)
+	var endHereDocument *Regexp = new(Regexp)
 	var saveFp *os.File = new(os.File)
+	//var syntaxChan chan int = make(chan int)
 	for {
-		debug.SetGCPercent(100)
 		runtime.GC()
+		debug.SetGCPercent(100)
 		debug.FreeOSMemory()
 		// ループ開始時に正常動作するソースのバックアップを取得
 		ff.Seek(0, 0)
@@ -164,7 +179,7 @@ func main() {
 		*line = ""
 
 		// 標準入力開始
-		stdin(line);
+		stdin(line)
 
 		// ヒアドキュメントで入力された場合
 		if hereFlag == false {
@@ -179,7 +194,7 @@ func main() {
 				hereFlag = false
 			}
 		} else {
-			endHereDocument, err = regexp.Compile("^" + ID + "[ ]*;$")
+			endHereDocument, err = Compile("^" + ID + "[ ]*;$")
 			if endHereDocument.MatchString(*line) {
 				hereFlag = false
 			} else {
@@ -197,20 +212,11 @@ func main() {
 			input = ""
 			count = 0
 			continue
-		} else if saveRegex.MatchString(*line) {
+		} else if *line == "save" {
 			// saveキーワードが入力された場合
+			// OSによってパスの差し替え(build タグによって差し替えるためif文は削除)
 			currentDir, err = os.Getwd()
-			if err != nil {
-				echo.Echo(err.Error() + "\r\n")
-				os.Exit(255)
-			}
-			currentDir, err = filepath.Abs(currentDir)
-			if err != nil {
-				echo.Echo(err.Error() + "\r\n")
-				break
-			}
-			// OSによってパスの差し替え
-			currentDir += "/save.php"
+			currentDir += "\\save.php"
 			saveFp, err = os.Create(currentDir)
 			if err != nil {
 				echo.Echo(err.Error() + "\r\n")
@@ -229,8 +235,19 @@ func main() {
 			input = ""
 			continue
 		} else if *line == "exit" {
-			echo.Echo("[Will exit console.]\r\n")
-			os.Exit(0)
+			// コンソールを終了させる
+			echo.Echo("[Would you really like to quit a console which you are running in terminal? yes/or]\r\n")
+			var quitText *string
+			quitText = new(string)
+			stdin(quitText)
+			if *quitText == "yes" {
+				os.Exit(0)
+			} else {
+				echo.Echo("[Canceled to quit this console app in terminal.]\r\n")
+			}
+			*line = ""
+			input = ""
+			continue
 		} else if *line == "" {
 			// 空文字エンターの場合はループを飛ばす
 			continue
@@ -264,11 +281,13 @@ func main() {
 			openCount = 0
 			closeCount = 0
 		} else {
-			panic("[Runtime Error happened!]\r\n")
+			panic("[Runtime Error happened!]")
 		}
 		input += *line + "\n"
 		if multiple == 0 {
 			ss, err = ff.Write([]byte(input))
+			// 並行処理でスクリプトが正常実行できるまでループを繰り返す
+			// go SyntaxCheck(tentativeFile, syntaxChan)
 			if err != nil {
 				echo.Echo("[Failed to write input code to file pointer.]" + "\r\n")
 				echo.Echo("    " + err.Error() + "\r\n")
@@ -285,8 +304,29 @@ func main() {
 		} else if multiple == 1 {
 			continue
 		} else {
-			panic("[Runtime Error which system could not understand happeds.]\r\n")
+			panic("[Runtime Error which system could not understand happeds.]")
 		}
+	}
+}
+
+// シンタックスチェックのみを実行する
+// SyntaxCheck バックグランドでコマンドが正常終了したかどうかを検証する
+func SyntaxCheck(filePath *string, c chan int) (bool, error) {
+	defer debug.SetGCPercent(100)
+	defer runtime.GC()
+	defer debug.FreeOSMemory()
+	var e error = nil
+	var command *exe.Cmd = new(exe.Cmd)
+	// バックグラウンドでPHPをコマンドラインで実行
+	// php -l コマンドで構文検証を行う
+	command = exe.Command("php", "-l", *filePath)
+	e = command.Run()
+	if e != nil {
+		c <- 0
+		return false, e
+	} else {
+		c <- 1
+		return true, nil
 	}
 }
 
@@ -301,7 +341,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 	if e != nil {
 		// 実行したスクリプトの終了コードを取得
 		var code bool = command.ProcessState.Success()
-		if code == false {
+		if code != true {
 			var scanText string = ""
 			command = exe.Command("php", *filePath)
 			stdout, _ := command.StdoutPipe()
@@ -346,15 +386,14 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 	command = exe.Command("php", *filePath)
 	stdout, ee := command.StdoutPipe()
 	if ee != nil {
-		echo.Echo(ee.Error() + "\r\n");
+		echo.Echo(ee.Error() + "\r\n")
 		panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.")
 	}
 	command.Start()
 	scanner := bufio.NewScanner(stdout)
-	for
-	{
+	for {
 		// 読み取り可能な場合
-		if (scanner.Scan() == true) {
+		if scanner.Scan() == true {
 			if ii >= beforeOffset {
 				scanText = scanner.Text()
 				if len(scanText) > 0 {
@@ -363,13 +402,13 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 			}
 			ii++
 		} else {
-			break;
+			break
 		}
 	}
 	command.Wait()
 	command = nil
 	stdout = nil
-	scanText = "";
+	scanText = ""
 	echo.Echo("\r\n")
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
 	return ii, e
