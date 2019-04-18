@@ -122,12 +122,14 @@ func main() {
 
 	// 入力されたソースコードをバックグラウンドで検証する
 	var syntax chan int
-	syntax = make(chan int, 1)
+	syntax = make(chan int)
 	var errorString chan string
-	errorString = make(chan string, 1)
+	errorString = make(chan string)
 
-	//var fixedInput string = ""
+	var fixedInput string
 	input = initializer
+	fixedInput = input
+	var errorMessage string
 	for {
 		debug.SetGCPercent(100)
 		debug.FreeOSMemory()
@@ -142,9 +144,9 @@ func main() {
 		// ff.WriteAt(backup, 0)
 
 		if multiple == 1 {
-			echo.Echo(" .... ")
+			echo.Echo("(" + errorMessage + ")" + " .... ")
 		} else {
-			echo.Echo("php > ")
+			echo.Echo("(" + errorMessage + ")" + "php > ")
 		}
 		*line = ""
 
@@ -160,6 +162,7 @@ func main() {
 			}
 			*line = ""
 			input = initializer
+			fixedInput = input
 			count = 0
 			multiple = 0
 			continue
@@ -172,6 +175,7 @@ func main() {
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
+			input = fixedInput
 			*writtenByte, err = saveFp.WriteAt([]byte(input), 0)
 			if err != nil {
 				saveFp.Close()
@@ -181,6 +185,7 @@ func main() {
 			echo.Echo("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n")
 			saveFp.Close()
 			*line = ""
+			multiple = 0
 			continue
 		} else if temp == "exit" {
 			// コンソールを終了させる
@@ -194,7 +199,10 @@ func main() {
 				echo.Echo("[Canceled to quit this console app in terminal.]\r\n")
 			}
 			*line = ""
-			input = ""
+			continue
+		} else if temp == "restore" {
+			input = fixedInput
+			multiple = 0
 			continue
 		} else if temp == "" {
 			// 空文字エンターの場合はループを飛ばす
@@ -209,14 +217,15 @@ func main() {
 			echo.Echo(err.Error())
 			continue
 		}
+		fmt.Println(input)
 		// 並行処理でスクリプトが正常実行できるまでループを繰り返す
-		SyntaxCheck(tentativeFile, syntax, errorString)
+		go SyntaxCheck(tentativeFile, syntax, errorString)
 		// チャンネルから値を取得
 		si := <-syntax
-		<-errorString
+		errorMessage = <-errorString
 		if si == 1 {
 			*line = ""
-			//fixedInput = input
+			fixedInput = input
 			count, err = tempFunction(ff, tentativeFile, count)
 			if err != nil {
 				continue
@@ -239,6 +248,7 @@ func SyntaxCheck(filePath *string, c chan int, errorString chan string) (bool, e
 	command = exe.Command("php", *filePath)
 	e = command.Run()
 	fmt.Println(e)
+	fmt.Println("======")
 	if e == nil {
 		// コマンド成功時
 		c <- 1
