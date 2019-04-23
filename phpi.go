@@ -16,6 +16,7 @@ import (
 	. "phpi/echo"
 	"phpi/goroutine"
 	"phpi/standardInput"
+	"reflect"
 	_ "reflect"
 	_ "regexp"
 	"runtime"
@@ -49,42 +50,38 @@ func enClosure(keep string) func(string) string {
 	}
 
 }
+
+// 空のインターフェース
+type TestInterface interface {
+	Fuck()
+}
+
+type TestStruct struct {
+	Name    string
+	Fucking string
+}
+
+func (this *TestStruct) Fuck() {
+	fmt.Println("Fuck you")
+}
 func main() {
-
-	closure := func() []func(string) string {
-		var lexical string = "__初期値__"
-		// アクセサ
-		var accessor []func(string) string = make([]func(string) string, 2)
-
-		accessor[0] = func(s string) string {
-			// 引数に値がある場合
-			if len(s) > 0 {
-				lexical = s
-				return lexical
-			} else {
-				return lexical
-			}
+	var oo TestStruct = TestStruct{}
+	var io TestInterface = &oo
+	// この時点でioは*TestStruct型になる
+	fmt.Println(reflect.TypeOf(io))
+	func(i interface{}) {
+		value, ok := io.(*TestStruct)
+		if ok == true {
+			value.Fuck()
 		}
-		accessor[1] = func(s string) string {
-			// 引数に値がある場合
-			if len(s) > 0 {
-				lexical = s
-				return lexical
-			} else {
-				return lexical
-			}
-		}
-		return accessor
-	}()
-	fmt.Println(closure[0](""))
-	closure[1]("値の変更")
-	fmt.Println(closure[0](""))
+	}(io)
 
 	var echo func(interface{}) (int, error)
 	echo = Echo()
 	var stdin (func(*string) bool) = nil
 	var standard *standardInput.StandardInput = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
+	standard.SetBufferSize(1024 * 2)
 	stdin = standard.GetStandardInputFunction()
 
 	// プロセスの監視
@@ -239,7 +236,7 @@ func main() {
 			}
 			*line = ""
 			continue
-		} else if temp == "restore" {
+		} else if temp == "restore" || temp == "clear" {
 			input = fixedInput
 			os.Truncate(*tentativeFile, 0)
 			ff.WriteAt([]byte(input), 0)
