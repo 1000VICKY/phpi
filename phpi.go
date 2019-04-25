@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	_ "errors"
-	"fmt"
 	"io"
 	_ "io"
 	"io/ioutil"
@@ -16,11 +15,8 @@ import (
 	. "phpi/echo"
 	"phpi/goroutine"
 	"phpi/standardInput"
-	"reflect"
 	_ "reflect"
 	_ "regexp"
-	"runtime"
-	"runtime/debug"
 	"strconv"
 	_ "strings"
 	_ "syscall"
@@ -37,49 +33,20 @@ import (
 	_ "golang.org/x/sys/unix"
 )
 
-func enClosure(keep string) func(string) string {
+// 実行するPHPスクリプトの初期化
+// バックティックでヒアドキュメント
+const initializer = "<?php \r\n" +
+	"ini_set(\"display_errors\", 1);\r\n" +
+	"ini_set(\"error_reporting\", -1);\r\n"
 
-	var localVariable string = keep
-	return func(param string) string {
-		if len(param) > 0 {
-			localVariable = param
-			return localVariable
-		} else {
-			return localVariable
-		}
-	}
+var echo func(interface{}) (int, error)
+var stdin (func(*string) bool)
+var standard *standardInput.StandardInput
 
-}
-
-// 空のインターフェース
-type TestInterface interface {
-	Fuck()
-}
-
-type TestStruct struct {
-	Name    string
-	Fucking string
-}
-
-func (this *TestStruct) Fuck() {
-	fmt.Println("Fuck you")
-}
 func main() {
-	var oo TestStruct = TestStruct{}
-	var io TestInterface = &oo
-	// この時点でioは*TestStruct型になる
-	fmt.Println(reflect.TypeOf(io))
-	func(i interface{}) {
-		value, ok := io.(*TestStruct)
-		if ok == true {
-			value.Fuck()
-		}
-	}(io)
-
-	var echo func(interface{}) (int, error)
 	echo = Echo()
-	var stdin (func(*string) bool) = nil
-	var standard *standardInput.StandardInput = new(standardInput.StandardInput)
+	// 標準入力を取得するための関数オブジェクトを作成
+	standard = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
 	standard.SetBufferSize(1024 * 2)
 	stdin = standard.GetStandardInputFunction()
@@ -108,12 +75,6 @@ func main() {
 	go goroutine.CrushingSignal(exit_chan)
 	// 平行でGCを実施
 	go goroutine.RunningFreeOSMemory()
-
-	// 実行するPHPスクリプトの初期化
-	// バックティックでヒアドキュメント
-	const initializer = "<?php \r\n" +
-		"ini_set(\"display_errors\", 1);\r\n" +
-		"ini_set(\"error_reporting\", -1);\r\n"
 
 	// 利用変数初期化
 	var input string
@@ -151,8 +112,6 @@ func main() {
 		echo(err.Error() + "\r\n")
 		os.Exit(255)
 	}
-	defer ff.Close()
-	defer os.Remove(*tentativeFile)
 
 	var count int = 0
 	//var ss int = 0
@@ -230,6 +189,8 @@ func main() {
 			quitText = new(string)
 			stdin(quitText)
 			if *quitText == "yes" {
+				ff.Close()
+				os.Remove(*tentativeFile)
 				os.Exit(0)
 			} else {
 				echo("[Canceled to quit this console app in terminal.]\r\n")
@@ -281,15 +242,18 @@ func main() {
 }
 
 func SyntaxCheck(filePath *string, c chan int, cc chan int /*wg *sync.WaitGroup*/) (bool, error) {
-	defer debug.SetGCPercent(100)
-	defer runtime.GC()
-	defer debug.FreeOSMemory()
 	var e error = nil
 	var command *exe.Cmd
 	// バックグラウンドでPHPをコマンドラインで実行
 	command = exe.Command("php", *filePath)
 	e = command.Run()
 	//wg.Done()
+	// ガベージコレクション
+	/*
+		debug.SetGCPercent(100)
+		runtime.GC()
+		debug.FreeOSMemory()
+	*/
 	if e == nil {
 		// コマンド成功時
 		c <- 1
@@ -304,13 +268,13 @@ func SyntaxCheck(filePath *string, c chan int, cc chan int /*wg *sync.WaitGroup*
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool) (int, error) {
-	defer debug.SetGCPercent(100)
-	defer runtime.GC()
-	defer debug.FreeOSMemory()
 	echo := Echo()
 	var e error
 	var stdout io.ReadCloser
 	var command *exe.Cmd
+	var ii int = 0
+	var scanText string
+	var code bool
 	command = exe.Command("php", *filePath)
 	// バックグラウンドでPHPをコマンドラインで実行
 	e = command.Run()
@@ -319,14 +283,14 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 		// バックグランドでの実行が失敗の場合
 		if e != nil {
 			// 実行したスクリプトの終了コードを取得
-			var code bool = command.ProcessState.Success()
+			code = command.ProcessState.Success()
 			if code != true {
-				var scanText string = ""
+				scanText = ""
 				command = exe.Command("php", *filePath)
 				stdout, _ := command.StdoutPipe()
 				command.Start()
 				scanner := bufio.NewScanner(stdout)
-				var ii int = 0
+				ii = 0
 				for scanner.Scan() {
 					if ii >= beforeOffset {
 						scanText = scanner.Text()
@@ -356,8 +320,6 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 			}
 		}
 	}
-	var ii int = 0
-	var scanText string
 	// Run()メソッドで利用したcommandオブジェクトを再利用
 	command = exe.Command("php", *filePath)
 	stdout, e = command.StdoutPipe()
@@ -387,17 +349,26 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	scanText = ""
 	echo("\r\n")
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
+
+	/*
+		debug.SetGCPercent(100)
+		runtime.GC()
+		debug.FreeOSMemory()
+	*/
 	return ii, e
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
-	defer debug.SetGCPercent(100)
-	defer runtime.GC()
-	defer debug.FreeOSMemory()
 	var err error
 	fp.Truncate(0)
 	fp.Seek(0, 0)
 	_, err = fp.WriteAt([]byte(initialString), 0)
 	fp.Seek(0, 0)
+
+	/*
+		debug.SetGCPercent(100)
+		runtime.GC()
+		debug.FreeOSMemory()
+	*/
 	return fp, err
 }
