@@ -19,6 +19,8 @@ import (
 	_ "regexp"
 	"strconv"
 	_ "strings"
+	"sync"
+	"syscall"
 	_ "syscall"
 	_ "time"
 
@@ -42,6 +44,16 @@ const initializer = "<?php \r\n" +
 var echo func(interface{}) (int, error)
 var stdin (func(*string) bool)
 var standard *standardInput.StandardInput
+
+// *sync.WaitGroupを使ったスレッド処理
+var wg *sync.WaitGroup = new(sync.WaitGroup)
+
+// channelを使ったスレッド処理
+var c chan int = make(chan int)
+var cc chan int = make(chan int)
+
+// グローパルなboolean型
+var commonBool bool = false
 
 func main() {
 	echo = Echo()
@@ -123,19 +135,11 @@ func main() {
 	var saveFp *os.File
 	saveFp = new(os.File)
 
-	// 入力されたソースコードをバックグラウンドで検証する
-	var syntax chan int
-	syntax = make(chan int)
-	var cc chan int
-	cc = make(chan int)
-
 	var fixedInput string
 	input = initializer
 	fixedInput = input
 	var exitCode int
 
-	// channelの代替方法
-	// var wg *sync.WaitGroup = new(sync.WaitGroup)
 	for {
 		if multiple == 1 {
 			echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
@@ -184,11 +188,11 @@ func main() {
 			continue
 		} else if temp == "exit" {
 			// コンソールを終了させる
-			echo("[Would you really like to quit a console which you are running in terminal? yes or other]\r\n")
+			echo("[Would you really like to quit a console which you are running in terminal? Pushing Enter key or other]\r\n")
 			var quitText *string
 			quitText = new(string)
 			stdin(quitText)
-			if *quitText == "yes" {
+			if *quitText == "" {
 				ff.Close()
 				os.Remove(*tentativeFile)
 				os.Exit(0)
@@ -217,14 +221,12 @@ func main() {
 			echo(err.Error())
 			continue
 		}
-		// 並行処理でスクリプトが正常実行できるまでループを繰り返す
-		// wg.Add(1)
-		go SyntaxCheck(tentativeFile, syntax, cc /*, wg*/)
-		// チャンネルから値を取得
-		si := <-syntax
-		exitCode = <-cc
-		//		wg.Wait()
-		if si == 1 {
+
+		// *sync.WaitGroup 及び 共有メモリを使用したバージョン
+		wg.Add(1)
+		go SyntaxCheckUsingWaitGroup(tentativeFile, wg, &commonBool, &exitCode)
+		wg.Wait()
+		if commonBool == true {
 			*line = ""
 			fixedInput = input + "echo (PHP_EOL);"
 			count, err = tempFunction(ff, tentativeFile, count, false)
@@ -235,13 +237,39 @@ func main() {
 			multiple = 0
 			input += " echo(PHP_EOL);\r\n "
 		} else {
-			_, err = tempFunction(ff, tentativeFile, count, true)
+			//_, err = tempFunction(ff, tentativeFile, count, true)
 			multiple = 1
 		}
+
+		// //channel を使った場合
+
+		// // 並行処理でスクリプトが正常実行できるまでループを繰り返す
+		// // wg.Add(1)
+		// go SyntaxCheckUsingChannel(tentativeFile, syntax, cc chan int ,)
+		// // チャンネルから値を取得
+		// si := <-syntax
+		// exitCode = <-cc
+		// //		wg.Wait()
+		// if si == 1 {
+		// 	*line = ""
+		// 	fixedInput = input + "echo (PHP_EOL);"
+		// 	count, err = tempFunction(ff, tentativeFile, count, false)
+		// 	if err != nil {
+		// 		echo(err.Error())
+		// 		continue
+		// 	}
+		// 	multiple = 0
+		// 	input += " echo(PHP_EOL);\r\n "
+		// } else {
+		// 	_, err = tempFunction(ff, tentativeFile, count, true)
+		// 	multiple = 1
+		// }
+
 	}
 }
 
-func SyntaxCheck(filePath *string, c chan int, cc chan int /*wg *sync.WaitGroup*/) (bool, error) {
+// SyntaxCheckUsingChannel
+func SyntaxCheckUsingChannel(filePath *string, c chan int, cc chan int) (bool, error) {
 	var e error = nil
 	var command *exe.Cmd
 	// バックグラウンドでPHPをコマンドラインで実行
@@ -267,6 +295,48 @@ func SyntaxCheck(filePath *string, c chan int, cc chan int /*wg *sync.WaitGroup*
 	}
 }
 
+/**
+ *SyntaxCheckUsingWaitGroup WaitGroupオブジェクトを使ったバージョン
+ * @param string filePath
+ * @param *sync.WaitGroup w
+ * @param *int exitedStatus
+ *
+ * @return bool, error
+ */
+func SyntaxCheckUsingWaitGroup(filePath *string, w *sync.WaitGroup, b *bool, exitedStatus *int) (bool, error) {
+	var e error = nil
+	var command *exe.Cmd
+	var waitStatus syscall.WaitStatus
+	var ok bool
+	// バックグラウンドでPHPをコマンドラインで実行
+	command = exe.Command("php", *filePath)
+	command.Run()
+	// command.ProcessState.Sys()は interface{}を返却する
+	waitStatus, ok = command.ProcessState.Sys().(syscall.WaitStatus)
+	// 型アサーション成功時
+	if ok == true {
+		*exitedStatus = waitStatus.ExitStatus()
+		var ps *os.ProcessState
+		ps = command.ProcessState
+		if ps.Success() {
+			// コマンド成功時
+			w.Done()
+			*b = true
+			return true, nil
+		} else {
+			// コマンド実行失敗時
+			w.Done()
+			*b = false
+			return false, e
+		}
+	} else {
+		// コマンド実行失敗時
+		w.Done()
+		*b = false
+		return false, e
+	}
+}
+
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool) (int, error) {
 	echo := Echo()
 	var e error
@@ -275,11 +345,11 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	var ii int = 0
 	var scanText string
 	var code bool
-	command = exe.Command("php", *filePath)
-	// バックグラウンドでPHPをコマンドラインで実行
-	e = command.Run()
 
 	if errorCheck == true {
+		command = exe.Command("php", *filePath)
+		// バックグラウンドでPHPをコマンドラインで実行
+		e = command.Run()
 		// バックグランドでの実行が失敗の場合
 		if e != nil {
 			// 実行したスクリプトの終了コードを取得
@@ -337,11 +407,14 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 				if len(scanText) > 0 {
 					echo("     " + scanText + "\r\n")
 				}
+			} else {
+				scanText = scanner.Text()
 			}
 			ii++
 		} else {
 			break
 		}
+		scanText = ""
 	}
 	command.Wait()
 	command = nil
