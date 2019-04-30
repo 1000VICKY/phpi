@@ -1,61 +1,61 @@
 // +build darwin
 
+// +build windows
+
 package main
 
 import (
 	"bufio"
 	_ "errors"
-	_ "fmt"
+	"io"
 	_ "io"
 	"io/ioutil"
 	"os"
 	exe "os/exec"
 	"os/signal"
 	"path/filepath"
-	"phpa/echo"
-	"phpa/goroutine"
-	"phpa/standardInput"
+	. "phpi/echo"
+	"phpi/goroutine"
+	"phpi/standardInput"
 	_ "reflect"
-	. "regexp"
+	_ "regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	_ "strings"
+	"syscall"
 	_ "syscall"
 	_ "time"
 
 	// 自作パッケージ
 
-	_ "phpa/myreflect"
+	_ "phpi/myreflect"
 
 	// syscallライブラリの代替ツール
 
-	"golang.org/x/sys/unix"
+	_ "golang.org/x/sys/unix"
 )
 
-func main() {
+// 実行するPHPスクリプトの初期化
+// バックティックでヒアドキュメント
+const initializer = "<?php \r\n" +
+	"ini_set(\"display_errors\", 1);\r\n" +
+	"ini_set(\"error_reporting\", -1);\r\n"
 
-	var stdin (func(*string) bool) = nil
-	var standard *standardInput.StandardInput = new(standardInput.StandardInput)
+var echo func(interface{}) (int, error)
+
+func main() {
+	var stdin (func(*string) bool)
+	var standard *standardInput.StandardInput
+	// グローパルなboolean型
+	var commonBool bool = false
+	echo = Echo()
+	// 標準入力を取得するための関数オブジェクトを作成
+	standard = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
+	standard.SetBufferSize(1024 * 2)
 	stdin = standard.GetStandardInputFunction()
 
-	/*
-		// プロセスの監視
-		var signal_chan chan os.Signal = make(chan os.Signal)
-		// OSによってシグナルのパッケージを変更
-		signal.Notify(
-			signal_chan,
-			os.Interrupt,
-			os.Kill,
-			windows.SIGKILL,
-			windows.SIGHUP,
-			windows.SIGINT,
-			windows.SIGTERM,
-			windows.SIGQUIT,
-			windows.Signal(0x13),
-			windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
-		)
-	*/
 	// プロセスの監視
 	var signal_chan chan os.Signal = make(chan os.Signal)
 	// OSによってシグナルのパッケージを変更
@@ -79,314 +79,249 @@ func main() {
 	go goroutine.MonitoringSignal(signal_chan, exit_chan)
 	// コンソールを停止するシグナルを握りつぶす
 	go goroutine.CrushingSignal(exit_chan)
+	// 平行でGCを実施
 	go goroutine.RunningFreeOSMemory()
-
-	// 実行するPHPスクリプトの初期化
-	// バックティックでヒアドキュメント
-	const initializer = "<?php \r\n" +
-		"ini_set(\"display_errors\", 1);\r\n" +
-		"ini_set(\"error_reporting\", -1);\r\n"
 
 	// 利用変数初期化
 	var input string
-	var line *string = new(string)
+	var line *string
 	line = new(string)
+
 	var tentativeFile *string
 	tentativeFile = new(string)
-	var ff *os.File
-	var err error
+
 	var writtenByte *int
 	writtenByte = new(int)
 
+	var ff *os.File
+	var err error
 	// ダミー実行ポインタ
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
-		echo.Echo(err.Error() + "\r\n")
+		echo(err.Error() + "\r\n")
 		os.Exit(255)
 	}
 	ff.Chmod(os.ModePerm)
 	*writtenByte, err = ff.WriteAt([]byte(initializer), 0)
 	if err != nil {
-		echo.Echo(err.Error() + "\r\n")
+		echo(err.Error() + "\r\n")
 		os.Exit(255)
 	}
 	// ファイルポインタに書き込まれたバイト数を検証する
 	if *writtenByte != len(initializer) {
-		echo.Echo("[Couldn't complete process to initialize script file.]\r\n")
+		echo("[Couldn't complete process to initialize script file.]\r\n")
 		os.Exit(255)
 	}
 	// ファイルポインタオブジェクトから絶対パスを取得する
 	*tentativeFile, err = filepath.Abs(ff.Name())
 	if err != nil {
-		echo.Echo(err.Error() + "\r\n")
+		echo(err.Error() + "\r\n")
 		os.Exit(255)
 	}
-	defer ff.Close()
-	defer os.Remove(*tentativeFile)
 
 	var count int = 0
-	var ss int = 0
+	//var ss int = 0
 	var multiple int = 0
-	var backup []byte = make([]byte, 0)
+	//var backup []byte = make([]byte, 0)
 	var currentDir string
 
-	// 開き括弧
-	var openBrace *Regexp
-	openBrace = new(Regexp)
-	var openCount int
-	openCount = 0
-	// 閉じ括弧
-	var closeBrace *Regexp
-	closeBrace = new(Regexp)
-	var closeCount int
-	closeCount = 0
-	openBrace, _ = Compile("^.*{[ \t]*.*$")
-	closeBrace, _ = Compile("^.*}.*$")
-	// ヒアドキュメントを入力された場合
-	var startHereDocument *Regexp
-	startHereDocument = new(Regexp)
-	startHereDocument, err = Compile("^.*<<<[ ]*([_a-zA-Z0-9]+)$")
-	if err != nil {
-		echo.Echo(err.Error() + "\r\n")
-		os.Exit(255)
-	}
-	// ヒアドキュメントで入力された場合
-	var hereFlag bool = false
-	// マッチしたヒアドキュメントタグを取得するため
-	var hereTag [][]string = make([][]string, 1)
-	var ID string = ""
-	var endHereDocument *Regexp = new(Regexp)
-	var saveFp *os.File = new(os.File)
-	//var syntaxChan chan int = make(chan int)
-	for {
-		runtime.GC()
-		debug.SetGCPercent(100)
-		debug.FreeOSMemory()
-		// ループ開始時に正常動作するソースのバックアップを取得
-		ff.Seek(0, 0)
-		backup, err = ioutil.ReadAll(ff)
-		if err != nil {
-			echo.Echo(err.Error() + "\r\n")
-			break
-		}
+	// saveコマンド入力用
+	var saveFp *os.File
+	saveFp = new(os.File)
 
-		ff.WriteAt(backup, 0)
+	var fixedInput string
+	input = initializer
+	fixedInput = input
+	var exitCode int
+
+	for {
 		if multiple == 1 {
-			echo.Echo(" .... ")
+			echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
 		} else {
-			echo.Echo("php > ")
+			echo("(" + strconv.Itoa(exitCode) + ")" + "php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
 		stdin(line)
+		temp := *line
 
-		// ヒアドキュメントで入力された場合
-		if hereFlag == false {
-			hereTag = startHereDocument.FindAllStringSubmatch(*line, -1)
-			if len(hereTag) > 0 {
-				if len(hereTag[0]) > 0 {
-					ID = hereTag[0][1]
-					hereFlag = true
-					echo.Echo("(" + ID + ")" + "\r\n")
-				}
-			} else {
-				hereFlag = false
-			}
-		} else {
-			endHereDocument, err = Compile("^" + ID + "[ ]*;$")
-			if endHereDocument.MatchString(*line) {
-				hereFlag = false
-			} else {
-				hereFlag = true
-			}
-		}
-
-		if *line == "del" {
+		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)
 			if err != nil {
-				echo.Echo(err.Error() + "\r\n")
+				echo(err.Error() + "\r\n")
 				os.Exit(255)
 			}
 			*line = ""
-			input = ""
+			input = initializer
+			fixedInput = input
 			count = 0
+			multiple = 0
 			continue
-		} else if *line == "save" {
-			// saveキーワードが入力された場合
-			// OSによってパスの差し替え(build タグによって差し替えるためif文は削除)
+		} else if temp == "save" {
 			currentDir, err = os.Getwd()
 			currentDir += "\\save.php"
 			saveFp, err = os.Create(currentDir)
 			if err != nil {
-				echo.Echo(err.Error() + "\r\n")
+				echo(err.Error() + "\r\n")
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
-			*writtenByte, err = saveFp.WriteAt(backup, 0)
+			input = fixedInput
+			*writtenByte, err = saveFp.WriteAt([]byte(input), 0)
 			if err != nil {
 				saveFp.Close()
-				echo.Echo(err.Error() + "\r\n")
+				echo(err.Error() + "\r\n")
 				os.Exit(255)
 			}
-			echo.Echo("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n")
+			echo("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n")
 			saveFp.Close()
 			*line = ""
-			input = ""
+			multiple = 0
+			exitCode = 0
 			continue
-		} else if *line == "exit" {
+		} else if temp == "exit" {
 			// コンソールを終了させる
-			echo.Echo("[Would you really like to quit a console which you are running in terminal? yes/or]\r\n")
+			echo("[Would you really like to quit a console which you are running in terminal? Pushing Enter key or other]\r\n")
 			var quitText *string
 			quitText = new(string)
 			stdin(quitText)
-			if *quitText == "yes" {
+			if *quitText == "" {
+				ff.Close()
+				os.Remove(*tentativeFile)
 				os.Exit(0)
 			} else {
-				echo.Echo("[Canceled to quit this console app in terminal.]\r\n")
+				echo("[Canceled to quit this console app in terminal.]\r\n")
 			}
 			*line = ""
-			input = ""
 			continue
-		} else if *line == "" {
+		} else if temp == "restore" || temp == "clear" {
+			input = fixedInput
+			os.Truncate(*tentativeFile, 0)
+			ff.WriteAt([]byte(input), 0)
+			multiple = 0
+			exitCode = 0
+			continue
+		} else if temp == "" {
 			// 空文字エンターの場合はループを飛ばす
 			continue
 		}
 
-		ob := openBrace.FindAllStringSubmatch(*line, -1)
-		if len(ob) > 0 {
-			if len(ob[0]) > 0 {
-				openCount = openCount + len(ob[0])
-			}
+		input += *line + "\n"
+
+		_, err = ff.WriteAt([]byte(input), 0)
+		if err != nil {
+			// temporary fileへの書き込みに失敗した場合
+			echo(err.Error())
+			continue
 		}
 
-		cb := closeBrace.FindAllStringSubmatch(*line, -1)
-		if len(cb) > 0 {
-			if len(cb[0]) > 0 {
-				closeCount = closeCount + len(cb[0])
-			}
-		}
-		// ブレースによる複数入力フラグがfalseの場合
-		if openCount == 0 && closeCount == 0 {
-			multiple = 0
-			if hereFlag == true {
-				multiple = 1
-			} else if hereFlag == false {
-				multiple = 0
-			}
-		} else if openCount != closeCount {
-			multiple = 1
-		} else if openCount == closeCount {
-			multiple = 0
-			openCount = 0
-			closeCount = 0
-		} else {
-			panic("[Runtime Error happened!]")
-		}
-		input += *line + "\n"
-		if multiple == 0 {
-			ss, err = ff.Write([]byte(input))
-			// 並行処理でスクリプトが正常実行できるまでループを繰り返す
-			// go SyntaxCheck(tentativeFile, syntaxChan)
+		commonBool, err = SyntaxCheckUsingWaitGroup(tentativeFile, &exitCode)
+		if commonBool == true {
+			*line = ""
+			fixedInput = input + "echo (PHP_EOL);"
+			count, err = tempFunction(ff, tentativeFile, count, false)
 			if err != nil {
-				echo.Echo("[Failed to write input code to file pointer.]" + "\r\n")
-				echo.Echo("    " + err.Error() + "\r\n")
+				echo(err.Error())
 				continue
 			}
-			if ss > 0 {
-				input = ""
-				*line = ""
-				count, err = tempFunction(ff, tentativeFile, count, backup)
-				if err != nil {
-					continue
-				}
-			}
-		} else if multiple == 1 {
-			continue
+			multiple = 0
+			input += " echo(PHP_EOL);\r\n "
 		} else {
-			panic("[Runtime Error which system could not understand happeds.]")
+			//_, err = tempFunction(ff, tentativeFile, count, true)
+			multiple = 1
 		}
 	}
 }
 
-// シンタックスチェックのみを実行する
-// SyntaxCheck バックグランドでコマンドが正常終了したかどうかを検証する
-func SyntaxCheck(filePath *string, c chan int) (bool, error) {
-	defer debug.SetGCPercent(100)
-	defer runtime.GC()
-	defer debug.FreeOSMemory()
+/**
+ *SyntaxCheckUsingWaitGroup WaitGroupオブジェクトを使ったバージョン
+ * @param string filePath
+ * @param *sync.WaitGroup w
+ * @param *int exitedStatus
+ *
+ * @return bool, error
+ */
+func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error) {
 	var e error = nil
-	var command *exe.Cmd = new(exe.Cmd)
+	var command *exe.Cmd
+	var waitStatus syscall.WaitStatus
+	var ok bool
 	// バックグラウンドでPHPをコマンドラインで実行
-	// php -l コマンドで構文検証を行う
-	command = exe.Command("php", "-l", *filePath)
-	e = command.Run()
-	if e != nil {
-		c <- 0
-		return false, e
-	} else {
-		c <- 1
-		return true, nil
+	command = exe.Command("php", *filePath)
+	command.Run()
+	// command.ProcessState.Sys()は interface{}を返却する
+	waitStatus, ok = command.ProcessState.Sys().(syscall.WaitStatus)
+	// 型アサーション成功時
+	if ok == true {
+		*exitedStatus = waitStatus.ExitStatus()
+		var ps *os.ProcessState
+		ps = command.ProcessState
+		if ps.Success() {
+			// コマンド成功時
+			return true, nil
+		}
 	}
+	return false, e
 }
 
-func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBackup []byte) (int, error) {
-	defer debug.SetGCPercent(100)
-	defer runtime.GC()
-	defer debug.FreeOSMemory()
-	var e error = nil
-	// バックグラウンドでPHPをコマンドラインで実行
-	command := exe.Command("php", *filePath)
-	e = command.Run()
-	if e != nil {
-		// 実行したスクリプトの終了コードを取得
-		var code bool = command.ProcessState.Success()
-		if code != true {
-			var scanText string = ""
-			command = exe.Command("php", *filePath)
-			stdout, _ := command.StdoutPipe()
-			command.Start()
-			scanner := bufio.NewScanner(stdout)
-			var ii int = 0
-			for scanner.Scan() {
-				if ii >= beforeOffset {
-					scanText = scanner.Text()
-					if len(scanText) > 0 {
-						echo.Echo("     " + scanner.Text() + "\r\n")
-					}
-				}
-				ii++
-			}
-			if beforeOffset > ii {
+func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool) (int, error) {
+	var e error
+	var stdout io.ReadCloser
+	var command *exe.Cmd
+	var ii int = 0
+	var scanText *string = new(string)
+	var code bool
+
+	if errorCheck == true {
+		command = exe.Command("php", *filePath)
+		// バックグラウンドでPHPをコマンドラインで実行
+		e = command.Run()
+		// バックグランドでの実行が失敗の場合
+		if e != nil {
+			// 実行したスクリプトの終了コードを取得
+			code = command.ProcessState.Success()
+			if code != true {
+				*scanText = ""
 				command = exe.Command("php", *filePath)
 				stdout, _ := command.StdoutPipe()
 				command.Start()
-				scanner = bufio.NewScanner(stdout)
+				scanner := bufio.NewScanner(stdout)
+				ii = 0
 				for scanner.Scan() {
-					scanText = scanner.Text()
-					if len(scanText) > 0 {
-						echo.Echo("     " + scanner.Text() + "\r\n")
+					if ii >= beforeOffset {
+						*scanText = scanner.Text()
+						if len(*scanText) > 0 {
+							echo("     " + scanner.Text() + "\r\n")
+						}
+					}
+					ii++
+				}
+				if beforeOffset > ii {
+					command = exe.Command("php", *filePath)
+					stdout, _ := command.StdoutPipe()
+					command.Start()
+					scanner = bufio.NewScanner(stdout)
+					for scanner.Scan() {
+						*scanText = scanner.Text()
+						if len(*scanText) > 0 {
+							echo("     " + scanner.Text() + "\r\n")
+						}
 					}
 				}
+				command.Wait()
+				echo("\r\n")
+				command = nil
+				stdout = nil
+				return beforeOffset, e
 			}
-			command.Wait()
-			echo.Echo("\r\n")
-			fp.Truncate(0)
-			fp.Seek(0, 0)
-			fp.WriteAt(temporaryBackup, 0)
-			command = nil
-			stdout = nil
-			return beforeOffset, e
 		}
 	}
-
-	var ii int = 0
-	var scanText string
 	// Run()メソッドで利用したcommandオブジェクトを再利用
 	command = exe.Command("php", *filePath)
-	stdout, ee := command.StdoutPipe()
-	if ee != nil {
-		echo.Echo(ee.Error() + "\r\n")
+	stdout, e = command.StdoutPipe()
+	if e != nil {
+		echo(e.Error() + "\r\n")
 		panic("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.")
 	}
 	command.Start()
@@ -395,33 +330,37 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, temporaryBack
 		// 読み取り可能な場合
 		if scanner.Scan() == true {
 			if ii >= beforeOffset {
-				scanText = scanner.Text()
-				if len(scanText) > 0 {
-					echo.Echo("     " + scanText + "\r\n")
+				*scanText = scanner.Text()
+				if len(*scanText) > 0 {
+					echo("     " + *scanText + "\r\n")
 				}
+			} else {
+				*scanText = scanner.Text()
 			}
 			ii++
 		} else {
 			break
 		}
+		*scanText = ""
 	}
 	command.Wait()
 	command = nil
 	stdout = nil
-	scanText = ""
-	echo.Echo("\r\n")
+	*scanText = ""
+	echo("\r\n")
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
+	debug.SetGCPercent(100)
+	runtime.GC()
+	debug.FreeOSMemory()
 	return ii, e
 }
 
 func deleteFile(fp *os.File, initialString string) (*os.File, error) {
-	defer debug.SetGCPercent(100)
-	defer runtime.GC()
-	defer debug.FreeOSMemory()
 	var err error
 	fp.Truncate(0)
 	fp.Seek(0, 0)
 	_, err = fp.WriteAt([]byte(initialString), 0)
 	fp.Seek(0, 0)
+
 	return fp, err
 }

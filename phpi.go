@@ -17,9 +17,10 @@ import (
 	"phpi/standardInput"
 	_ "reflect"
 	_ "regexp"
+	"runtime"
+	"runtime/debug"
 	"strconv"
 	_ "strings"
-	"sync"
 	"syscall"
 	_ "syscall"
 	_ "time"
@@ -42,20 +43,12 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
 var echo func(interface{}) (int, error)
-var stdin (func(*string) bool)
-var standard *standardInput.StandardInput
-
-// *sync.WaitGroupを使ったスレッド処理
-var wg *sync.WaitGroup = new(sync.WaitGroup)
-
-// channelを使ったスレッド処理
-var c chan int = make(chan int)
-var cc chan int = make(chan int)
-
-// グローパルなboolean型
-var commonBool bool = false
 
 func main() {
+	var stdin (func(*string) bool)
+	var standard *standardInput.StandardInput
+	// グローパルなboolean型
+	var commonBool bool = false
 	echo = Echo()
 	// 標準入力を取得するための関数オブジェクトを作成
 	standard = new(standardInput.StandardInput)
@@ -222,10 +215,7 @@ func main() {
 			continue
 		}
 
-		// *sync.WaitGroup 及び 共有メモリを使用したバージョン
-		wg.Add(1)
-		go SyntaxCheckUsingWaitGroup(tentativeFile, wg, &commonBool, &exitCode)
-		wg.Wait()
+		commonBool, err = SyntaxCheckUsingWaitGroup(tentativeFile, &exitCode)
 		if commonBool == true {
 			*line = ""
 			fixedInput = input + "echo (PHP_EOL);"
@@ -240,58 +230,6 @@ func main() {
 			//_, err = tempFunction(ff, tentativeFile, count, true)
 			multiple = 1
 		}
-
-		// //channel を使った場合
-
-		// // 並行処理でスクリプトが正常実行できるまでループを繰り返す
-		// // wg.Add(1)
-		// go SyntaxCheckUsingChannel(tentativeFile, syntax, cc chan int ,)
-		// // チャンネルから値を取得
-		// si := <-syntax
-		// exitCode = <-cc
-		// //		wg.Wait()
-		// if si == 1 {
-		// 	*line = ""
-		// 	fixedInput = input + "echo (PHP_EOL);"
-		// 	count, err = tempFunction(ff, tentativeFile, count, false)
-		// 	if err != nil {
-		// 		echo(err.Error())
-		// 		continue
-		// 	}
-		// 	multiple = 0
-		// 	input += " echo(PHP_EOL);\r\n "
-		// } else {
-		// 	_, err = tempFunction(ff, tentativeFile, count, true)
-		// 	multiple = 1
-		// }
-
-	}
-}
-
-// SyntaxCheckUsingChannel
-func SyntaxCheckUsingChannel(filePath *string, c chan int, cc chan int) (bool, error) {
-	var e error = nil
-	var command *exe.Cmd
-	// バックグラウンドでPHPをコマンドラインで実行
-	command = exe.Command("php", *filePath)
-	e = command.Run()
-	//wg.Done()
-	// ガベージコレクション
-	/*
-		debug.SetGCPercent(100)
-		runtime.GC()
-		debug.FreeOSMemory()
-	*/
-	if e == nil {
-		// コマンド成功時
-		c <- 1
-		cc <- command.ProcessState.ExitCode()
-		return true, nil
-	} else {
-		// コマンド実行失敗時
-		c <- 0
-		cc <- command.ProcessState.ExitCode()
-		return false, e
 	}
 }
 
@@ -303,7 +241,7 @@ func SyntaxCheckUsingChannel(filePath *string, c chan int, cc chan int) (bool, e
  *
  * @return bool, error
  */
-func SyntaxCheckUsingWaitGroup(filePath *string, w *sync.WaitGroup, b *bool, exitedStatus *int) (bool, error) {
+func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error) {
 	var e error = nil
 	var command *exe.Cmd
 	var waitStatus syscall.WaitStatus
@@ -320,30 +258,18 @@ func SyntaxCheckUsingWaitGroup(filePath *string, w *sync.WaitGroup, b *bool, exi
 		ps = command.ProcessState
 		if ps.Success() {
 			// コマンド成功時
-			w.Done()
-			*b = true
 			return true, nil
-		} else {
-			// コマンド実行失敗時
-			w.Done()
-			*b = false
-			return false, e
 		}
-	} else {
-		// コマンド実行失敗時
-		w.Done()
-		*b = false
-		return false, e
 	}
+	return false, e
 }
 
 func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool) (int, error) {
-	echo := Echo()
 	var e error
 	var stdout io.ReadCloser
 	var command *exe.Cmd
 	var ii int = 0
-	var scanText string
+	var scanText *string = new(string)
 	var code bool
 
 	if errorCheck == true {
@@ -355,7 +281,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 			// 実行したスクリプトの終了コードを取得
 			code = command.ProcessState.Success()
 			if code != true {
-				scanText = ""
+				*scanText = ""
 				command = exe.Command("php", *filePath)
 				stdout, _ := command.StdoutPipe()
 				command.Start()
@@ -363,8 +289,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 				ii = 0
 				for scanner.Scan() {
 					if ii >= beforeOffset {
-						scanText = scanner.Text()
-						if len(scanText) > 0 {
+						*scanText = scanner.Text()
+						if len(*scanText) > 0 {
 							echo("     " + scanner.Text() + "\r\n")
 						}
 					}
@@ -376,8 +302,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 					command.Start()
 					scanner = bufio.NewScanner(stdout)
 					for scanner.Scan() {
-						scanText = scanner.Text()
-						if len(scanText) > 0 {
+						*scanText = scanner.Text()
+						if len(*scanText) > 0 {
 							echo("     " + scanner.Text() + "\r\n")
 						}
 					}
@@ -403,31 +329,28 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 		// 読み取り可能な場合
 		if scanner.Scan() == true {
 			if ii >= beforeOffset {
-				scanText = scanner.Text()
-				if len(scanText) > 0 {
-					echo("     " + scanText + "\r\n")
+				*scanText = scanner.Text()
+				if len(*scanText) > 0 {
+					echo("     " + *scanText + "\r\n")
 				}
 			} else {
-				scanText = scanner.Text()
+				*scanText = scanner.Text()
 			}
 			ii++
 		} else {
 			break
 		}
-		scanText = ""
+		*scanText = ""
 	}
 	command.Wait()
 	command = nil
 	stdout = nil
-	scanText = ""
+	*scanText = ""
 	echo("\r\n")
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
-
-	/*
-		debug.SetGCPercent(100)
-		runtime.GC()
-		debug.FreeOSMemory()
-	*/
+	debug.SetGCPercent(100)
+	runtime.GC()
+	debug.FreeOSMemory()
 	return ii, e
 }
 
@@ -438,10 +361,5 @@ func deleteFile(fp *os.File, initialString string) (*os.File, error) {
 	_, err = fp.WriteAt([]byte(initialString), 0)
 	fp.Seek(0, 0)
 
-	/*
-		debug.SetGCPercent(100)
-		runtime.GC()
-		debug.FreeOSMemory()
-	*/
 	return fp, err
 }
