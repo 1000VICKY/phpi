@@ -2,7 +2,6 @@
 package goroutine
 
 import (
-	"fmt"
 	"os"
 	"phpa/echo"
 	"runtime"
@@ -10,6 +9,21 @@ import (
 	"syscall"
 	"time"
 )
+
+// このプロジェクトのみのErrorオブジェクトをt定義
+type MyErrorJustThisProject struct {
+	errorMessage string
+}
+
+// エラーメッセージ内容をセットする
+func (self *MyErrorJustThisProject) SetErrorMessage(s string) {
+	self.errorMessage = s
+}
+
+// errorインターフェースを満たすメソッド
+func (self *MyErrorJustThisProject) Error() string {
+	return self.errorMessage
+}
 
 func MonitoringSignal(sig chan os.Signal, exit chan int) {
 	var s os.Signal
@@ -59,37 +73,18 @@ func CrushingSignal(exit chan int) {
 	}
 }
 
+type MyStruct struct {
+}
+
 func RunningFreeOSMemory() {
-	var mem runtime.MemStats
+	var mem *runtime.MemStats
+	mem = new(runtime.MemStats)
 	// 定期時間ごとにガベージコレクションを動作させる
 	for {
-		runtime.ReadMemStats(&mem)
-		fmt.Println(mem.Alloc, mem.TotalAlloc, mem.HeapAlloc, mem.HeapSys)
+		runtime.ReadMemStats(mem)
+		// fmt.Println(mem.Alloc, mem.TotalAlloc, mem.HeapAlloc, mem.HeapSys, mem.Sys)
 		time.Sleep(5 * time.Second)
 		runtime.GC()
 		debug.FreeOSMemory()
 	}
-}
-
-type My struct {
-	name string
-	age  int
-}
-
-// 名前をメンバに代入
-func (this *My) SetName(name string) *My {
-	this.name = name
-	return (this)
-}
-
-// nameメンバを取得
-func (this *My) GetName() string {
-	return this.name
-}
-func (this *My) SetAge(age int) *My {
-	this.age = age
-	return (this)
-}
-func (this *My) GetAge() int {
-	return (this.age)
 }
