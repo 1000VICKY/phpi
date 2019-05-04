@@ -1,21 +1,14 @@
 // 自作パッケージ
 package goroutine
 
-import "os"
 import (
-	"syscall"
-)
-import (
-	"time"
-)
-import (
-	"runtime"
-)
-import (
-	"runtime/debug"
-)
-import (
+	"fmt"
+	"os"
 	"phpa/echo"
+	"runtime"
+	"runtime/debug"
+	"syscall"
+	"time"
 )
 
 func MonitoringSignal(sig chan os.Signal, exit chan int) {
@@ -67,8 +60,11 @@ func CrushingSignal(exit chan int) {
 }
 
 func RunningFreeOSMemory() {
+	var mem runtime.MemStats
 	// 定期時間ごとにガベージコレクションを動作させる
 	for {
+		runtime.ReadMemStats(&mem)
+		fmt.Println(mem.Alloc, mem.TotalAlloc, mem.HeapAlloc, mem.HeapSys)
 		time.Sleep(5 * time.Second)
 		runtime.GC()
 		debug.FreeOSMemory()
