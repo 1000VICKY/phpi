@@ -1,39 +1,33 @@
-// +build darwin
-
-// +build windows
+// +build darwin  -ldflags "-w -s"
 
 package main
 
 import (
 	"bufio"
 	_ "errors"
+	"fmt"
 	"io"
-	_ "io"
 	"io/ioutil"
 	"os"
 	exe "os/exec"
 	"os/signal"
 	"path/filepath"
-	. "phpi/echo"
-	"phpi/goroutine"
 	"phpi/standardInput"
 	_ "reflect"
 	_ "regexp"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	_ "strings"
 	"syscall"
-	_ "syscall"
 	_ "time"
 
 	// 自作パッケージ
-
+	. "phpi/echo"
+	"phpi/goroutine"
 	_ "phpi/myreflect"
 
 	// syscallライブラリの代替ツール
-
-	_ "golang.org/x/sys/unix"
+	"golang.org/x/sys/unix"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -45,10 +39,22 @@ const initializer = "<?php \r\n" +
 var echo func(interface{}) (int, error)
 
 func main() {
+	// recoverの処理
+	defer func() {
+		var err interface{} = nil
+		err = recover()
+		if err != nil {
+			// ランタイムエラーで処理を中断
+			fmt.Println(err)
+			os.Exit(255)
+		}
+	}()
 	var stdin (func(*string) bool)
 	var standard *standardInput.StandardInput
-	// グローパルなboolean型
+	// 汎用的なboolean型
 	var commonBool bool = false
+	// メモリ状態を検証
+	var mem runtime.MemStats
 	echo = Echo()
 	// 標準入力を取得するための関数オブジェクトを作成
 	standard = new(standardInput.StandardInput)
@@ -133,18 +139,21 @@ func main() {
 	input = initializer
 	fixedInput = input
 	var exitCode int
+	var temp string
 
 	for {
 		if multiple == 1 {
-			echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
+			// echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
+			echo("  .... ")
 		} else {
-			echo("(" + strconv.Itoa(exitCode) + ")" + "php > ")
+			// echo("(" + strconv.Itoa(exitCode) + ")" + "php > ")
+			echo(" php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
 		stdin(line)
-		temp := *line
+		temp = *line
 
 		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)
@@ -220,7 +229,7 @@ func main() {
 		if commonBool == true {
 			*line = ""
 			fixedInput = input + "echo (PHP_EOL);"
-			count, err = tempFunction(ff, tentativeFile, count, false)
+			count, err = tempFunction(ff, tentativeFile, count, false, &mem)
 			if err != nil {
 				echo(err.Error())
 				continue
@@ -234,8 +243,8 @@ func main() {
 	}
 }
 
+// SyntaxCheckUsingWaitGroup WaitGroupオブジェクトを使ったバージョン
 /**
- *SyntaxCheckUsingWaitGroup WaitGroupオブジェクトを使ったバージョン
  * @param string filePath
  * @param *sync.WaitGroup w
  * @param *int exitedStatus
@@ -243,7 +252,10 @@ func main() {
  * @return bool, error
  */
 func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error) {
-	var e error = nil
+	// 当該関数の返却用のErrorオブジェクトを生成
+	var e *goroutine.MyErrorJustThisProject
+	e = new(goroutine.MyErrorJustThisProject)
+	e.SetErrorMessage("型アサーションに失敗しています。")
 	var command *exe.Cmd
 	var waitStatus syscall.WaitStatus
 	var ok bool
@@ -265,7 +277,7 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 	return false, e
 }
 
-func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool) (int, error) {
+func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool, mem *runtime.MemStats) (int, error) {
 	var e error
 	var stdout io.ReadCloser
 	var command *exe.Cmd
@@ -348,6 +360,16 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	stdout = nil
 	*scanText = ""
 	echo("\r\n")
+	// 使用したメモリログを出力
+	runtime.ReadMemStats(mem)
+	fmt.Printf("(1)Alloc:%d, (2)TotalAlloc:%d, (3)Sys:%d, (4)HeapAlloc:%d, (5)HeapSys:%d, (6)HeapReleased:%d\r\n",
+		mem.Alloc, // HeapAllocと同値
+		mem.TotalAlloc,
+		mem.Sys,       // OSから得た合計バイト数
+		mem.HeapAlloc, // Allocと同値
+		mem.HeapSys,
+		mem.HeapReleased, // OSへ返却されたヒープ
+	)
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
 	debug.SetGCPercent(100)
 	runtime.GC()
@@ -361,6 +383,5 @@ func deleteFile(fp *os.File, initialString string) (*os.File, error) {
 	fp.Seek(0, 0)
 	_, err = fp.WriteAt([]byte(initialString), 0)
 	fp.Seek(0, 0)
-
 	return fp, err
 }
