@@ -1,60 +1,29 @@
 // PHPの組み込み関数をシミュレーション
-package main
+package phpFunctionGroup
 
-import "os"
-import "fmt"
-import "errors"
-
-// 空のインターフェース
-type myInterface interface {
-	A()
-}
-
-// MyFunction
-func MyFunction() func(...interface{}) (int, error) {
-	var echo (func(...interface{}) (int, error))
-
-	echo = fmt.Println
-	return echo
-}
-
-func main() {
-	echo := MyFunction()
-	echo("文字列を出力")
-	var fp *os.File = new(os.File)
-	var err error
-	var filePath string = "./senbiki.dat"
-	var ok bool
-	// ファイルを作成
-	fp, err = Fopen(filePath, "w")
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(255)
-	}
-
-	ok, err = FileExists(filePath)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(255)
-	}
-	fmt.Println(ok)
-	// ファイルポインタを閉じる
-	Fclose(fp)
-}
+import (
+	"errors"
+	"os"
+)
 
 // FileExists 指定したファイルが存在するかどうかを検証
 func FileExists(filePath string) (bool, error) {
-	fmt.Println(filePath)
-	var fileInfo os.FileInfo
+	var file *os.FileInfo = new(os.FileInfo)
 	var err error
-	// FileInfoオブジェクトを取得
-	fileInfo, err = os.Stat(filePath)
-	fmt.Println(fileInfo.Name())
-	if err != nil {
-		// 検証に失敗した場合
-		return false, err
+	if len(filePath) > 0 {
+		// FileInfoオブジェクトを取得(ポインタ変数を利用)
+		*file, err = os.Stat(filePath)
+		if err != nil {
+			// 検証に失敗した場合
+			return false, err
+		} else {
+			return true, err
+		}
 	} else {
-		return true, err
+		// filePathが不正な文字列の場合
+		// 任意のエラーオブジェクトを生成
+		err = errors.New("指定したfilePath変数の値が不正な文字列です")
+		return false, err
 	}
 }
 
@@ -119,6 +88,19 @@ func Fwrite(filePointer *os.File, text string) (int, error) {
 		return 0, *err
 	}
 	return writtenByte, *err
+}
+
+// Fread シミュレーション
+func Fread(f *os.File, length int) (string, error) {
+	var readBuffer []byte = make([]byte, length)
+	var readLength int
+	var err error
+	readLength, err = f.Read(readBuffer)
+	if err != nil || readLength == 0 {
+		return string(readBuffer), err
+	}
+	return string(readBuffer), nil
+
 }
 
 // Fclose シミュレーション

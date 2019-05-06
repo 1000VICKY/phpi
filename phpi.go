@@ -40,6 +40,16 @@ const initializer = "<?php \r\n" +
 var echo func(interface{}) (int, error)
 
 func main() {
+	// recoverの処理
+	defer func() {
+		var err interface{} = nil
+		err = recover()
+		if err != nil {
+			// ランタイムエラーで処理を中断
+			fmt.Println(err)
+			os.Exit(255)
+		}
+	}()
 	var stdin (func(*string) bool)
 	var standard *standardInput.StandardInput
 	// 汎用的なboolean型
@@ -129,6 +139,7 @@ func main() {
 	input = initializer
 	fixedInput = input
 	var exitCode int
+	var temp string
 
 	for {
 		if multiple == 1 {
@@ -142,7 +153,7 @@ func main() {
 
 		// 標準入力開始
 		stdin(line)
-		temp := *line
+		temp = *line
 
 		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)
@@ -351,7 +362,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	echo("\r\n")
 	// 使用したメモリログを出力
 	runtime.ReadMemStats(mem)
-	fmt.Printf("(1):%d, (2):%d, (3):%d, (4):%d, (5):%d, (6):%d\r\n",
+	fmt.Printf("(1)Alloc:%d, (2)TotalAlloc:%d, (3)Sys:%d, (4)HeapAlloc:%d, (5)HeapSys:%d, (6)HeapReleased:%d\r\n",
 		mem.Alloc, // HeapAllocと同値
 		mem.TotalAlloc,
 		mem.Sys,       // OSから得た合計バイト数
