@@ -3,7 +3,7 @@ package goroutine
 
 import (
 	"os"
-	"phpa/echo"
+	."phpi/echo"
 	"runtime"
 	"runtime/debug"
 	"syscall"
@@ -24,42 +24,45 @@ func (self *MyErrorJustThisProject) SetErrorMessage(s string) {
 func (self *MyErrorJustThisProject) Error() string {
 	return self.errorMessage
 }
+var echo func(interface{}) (int, error)
 
 func MonitoringSignal(sig chan os.Signal, exit chan int) {
+	echo = Echo();
 	var s os.Signal
 	for {
 		s, _ = <-sig
 		if s == syscall.SIGHUP {
-			echo.Echo("[syscall.SIGHUP]\r\n")
+			echo("[syscall.SIGHUP]\r\n")
 			// 割り込みを無視
 			exit <- 0
 		} else if s == syscall.SIGTERM {
-			echo.Echo("[syscall.SIGTERM].\r\n")
+			echo("[syscall.SIGTERM].\r\n")
 			exit <- 1
 		} else if s == os.Kill {
-			echo.Echo("[os.Kill].\r\n")
+			echo("[os.Kill].\r\n")
 			// 割り込みを無視
 			exit <- 0
 		} else if s == os.Interrupt {
 			if runtime.GOOS != "darwin" {
-				echo.Echo("[os.Interrupt].\r\n")
+				echo("[os.Interrupt].\r\n")
 			}
 			// 割り込みを無視
 			exit <- 0
 		} else if s == syscall.Signal(0x14) {
 			if runtime.GOOS != "darwin" {
-				echo.Echo("[syscall.SIGTSTP].\r\n")
+				echo("[syscall.SIGTSTP].\r\n")
 			}
 			// 割り込みを無視
 			exit <- 0
 		} else if s == syscall.SIGQUIT {
-			echo.Echo("[syscall.SIGQUIT].\r\n")
+			echo("[syscall.SIGQUIT].\r\n")
 			exit <- 1
 		}
 	}
 }
 
 func CrushingSignal(exit chan int) {
+	var echo = Echo();
 	var code int = 0
 	for {
 		code, _ = <-exit
@@ -67,7 +70,7 @@ func CrushingSignal(exit chan int) {
 			os.Exit(code)
 		} else {
 			if runtime.GOOS != "darwin" {
-				echo.Echo("[Ignored interrupt]")
+				echo("[Ignored interrupt]")
 			}
 		}
 	}
