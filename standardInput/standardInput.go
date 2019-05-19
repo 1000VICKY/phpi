@@ -3,7 +3,7 @@ package standardInput;
 
 import "os";
 import "strings";
-import "phpa/echo";
+import ."phpi/echo";
 
 // 表示入力を実行する関数オブジェクトのみを保持する
 type StandardInput struct {
@@ -21,6 +21,7 @@ func (self *StandardInput) SetBufferSize (size int ) {
 }
 // オブジェクトに標準入力関数を設定
 func (self *StandardInput) SetStandardInputFunction() {
+    var echo func(interface{}) (int, error ) = Echo();
     // 無名関数を変数へ保持
     self.input = func(s *string) bool {
         var size = 64;
@@ -36,7 +37,7 @@ func (self *StandardInput) SetStandardInputFunction() {
             value, ok = err.(error);
             // 型アサーションの検証結果
             if (ok == true && value != nil) {
-                echo.Echo("[" + value.Error() + "]");
+                echo("[" + value.Error() + "]");
                 return false;
             }
             *s += string(buffer[:writtenSize]);
