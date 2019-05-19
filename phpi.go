@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	_ "errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,26 +38,68 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"display_errors\", 1);\r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
-var echo func(interface{}) (int, error)
-
 func main() {
-	// recoverの処理
-	defer func() {
-		var err interface{} = nil
-		err = recover()
-		if err != nil {
-			// ランタイムエラーで処理を中断
-			fmt.Println(err)
+	////////////////////////////////////////////////////////////////////////
+	// コマンド実行時のコマンドライン引数を取得する
+	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
+	////////////////////////////////////////////////////////////////////////
+	var err error
+	var paramList []string
+	var environment string
+	flag.Parse()
+	paramList = flag.Args()
+	if len(paramList) >= 1 {
+		environment = paramList[0]
+	} else {
+		environment = "production"
+	}
+
+	// 標準出力への書き出しをつかいecho関数を定義
+	var echo func(interface{}) (int, error) = Echo()
+
+	////////////////////////////////////////////////////////////////////////
+	// phpコマンドが実行可能かどうかを検証
+	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
+	////////////////////////////////////////////////////////////////////////
+	var command *exe.Cmd = exe.Command("where", "php")
+	err = command.Run()
+	if err != nil {
+		_, _ = echo("Could not execute the command php!")
+		_, _ = echo(err)
+		os.Exit(255)
+	} else {
+		var p *os.ProcessState = command.ProcessState
+		if p.Success() != true {
+			_, _ = echo("Could not execute the command php!")
 			os.Exit(255)
 		}
+	}
+
+	// recoverの処理
+	defer func() {
+		var i interface{}
+		i = recover()
+		if i != nil {
+			var s string
+			var ok bool
+			s, ok = i.(string)
+			if ok == true {
+				echo(s)
+				os.Exit(255)
+			} else {
+				echo("Failed to run type assersion.")
+				echo("Need to able to convert `Error Object` to `String type`.")
+				os.Exit(255)
+			}
+		}
 	}()
+
 	var stdin (func(*string) bool)
 	var standard *standardInput.StandardInput
 	// 汎用的なboolean型
-	var commonBool bool = false
+	var commonBool bool
 	// メモリ状態を検証
 	var mem runtime.MemStats
-	echo = Echo()
 	// 標準入力を取得するための関数オブジェクトを作成
 	standard = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
@@ -89,8 +132,9 @@ func main() {
 	go goroutine.RunningFreeOSMemory()
 
 	// 利用変数初期化
-	var input string
+	var input *string
 	var line *string
+	input = new(string)
 	line = new(string)
 
 	var tentativeFile *string
@@ -100,7 +144,6 @@ func main() {
 	writtenByte = new(int)
 
 	var ff *os.File
-	var err error
 	// ダミー実行ポインタ
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
@@ -125,10 +168,8 @@ func main() {
 		os.Exit(255)
 	}
 
-	var count int = 0
-	//var ss int = 0
-	var multiple int = 0
-	//var backup []byte = make([]byte, 0)
+	var count int
+	var multiple int
 	var currentDir string
 
 	// saveコマンド入力用
@@ -136,8 +177,8 @@ func main() {
 	saveFp = new(os.File)
 
 	var fixedInput string
-	input = initializer
-	fixedInput = input
+	*input = initializer
+	fixedInput = *input
 	var exitCode int
 	var temp string
 
@@ -162,8 +203,8 @@ func main() {
 				os.Exit(255)
 			}
 			*line = ""
-			input = initializer
-			fixedInput = input
+			*input = initializer
+			fixedInput = *input
 			count = 0
 			multiple = 0
 			continue
@@ -176,8 +217,8 @@ func main() {
 				continue
 			}
 			saveFp.Chmod(os.ModePerm)
-			input = fixedInput
-			*writtenByte, err = saveFp.WriteAt([]byte(input), 0)
+			*input = fixedInput
+			*writtenByte, err = saveFp.WriteAt([]byte(*input), 0)
 			if err != nil {
 				saveFp.Close()
 				echo(err.Error() + "\r\n")
@@ -205,9 +246,9 @@ func main() {
 			*line = ""
 			continue
 		} else if temp == "restore" || temp == "clear" {
-			input = fixedInput
+			*input = fixedInput
 			os.Truncate(*tentativeFile, 0)
-			ff.WriteAt([]byte(input), 0)
+			ff.WriteAt([]byte(*input), 0)
 			multiple = 0
 			exitCode = 0
 			continue
@@ -216,9 +257,9 @@ func main() {
 			continue
 		}
 
-		input += *line + "\n"
+		*input += *line + "\n"
 
-		_, err = ff.WriteAt([]byte(input), 0)
+		_, err = ff.WriteAt([]byte(*input), 0)
 		if err != nil {
 			// temporary fileへの書き込みに失敗した場合
 			echo(err.Error())
@@ -228,14 +269,14 @@ func main() {
 		commonBool, err = SyntaxCheckUsingWaitGroup(tentativeFile, &exitCode)
 		if commonBool == true {
 			*line = ""
-			fixedInput = input + "echo (PHP_EOL);"
-			count, err = tempFunction(ff, tentativeFile, count, false, &mem)
+			fixedInput = *input + "echo (PHP_EOL);"
+			count, err = tempFunction(ff, tentativeFile, count, false, &mem, environment)
 			if err != nil {
 				echo(err.Error())
 				continue
 			}
 			multiple = 0
-			input += " echo(PHP_EOL);\r\n "
+			*input += " echo(PHP_EOL);\r\n "
 		} else {
 			//_, err = tempFunction(ff, tentativeFile, count, true)
 			multiple = 1
@@ -277,14 +318,15 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 	return false, e
 }
 
-func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool, mem *runtime.MemStats) (int, error) {
+func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bool, mem *runtime.MemStats, environment string) (int, error) {
 	var e error
 	var stdout io.ReadCloser
 	var command *exe.Cmd
-	var ii int = 0
+	var ii int
 	var scanText *string = new(string)
 	var code bool
 
+	var echo func(interface{}) (int, error) = Echo()
 	if errorCheck == true {
 		command = exe.Command("php", *filePath)
 		// バックグラウンドでPHPをコマンドラインで実行
@@ -360,16 +402,18 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	stdout = nil
 	*scanText = ""
 	echo("\r\n")
-	// 使用したメモリログを出力
-	runtime.ReadMemStats(mem)
-	fmt.Printf("(1)Alloc:%d, (2)TotalAlloc:%d, (3)Sys:%d, (4)HeapAlloc:%d, (5)HeapSys:%d, (6)HeapReleased:%d\r\n",
-		mem.Alloc, // HeapAllocと同値
-		mem.TotalAlloc,
-		mem.Sys,       // OSから得た合計バイト数
-		mem.HeapAlloc, // Allocと同値
-		mem.HeapSys,
-		mem.HeapReleased, // OSへ返却されたヒープ
-	)
+	if environment == "development" {
+		// 使用したメモリログを出力
+		runtime.ReadMemStats(mem)
+		fmt.Printf("(1)Alloc:%d, (2)TotalAlloc:%d, (3)Sys:%d, (4)HeapAlloc:%d, (5)HeapSys:%d, (6)HeapReleased:%d\r\n",
+			mem.Alloc, // HeapAllocと同値
+			mem.TotalAlloc,
+			mem.Sys,       // OSから得た合計バイト数
+			mem.HeapAlloc, // Allocと同値
+			mem.HeapSys,
+			mem.HeapReleased, // OSへ返却されたヒープ
+		)
+	}
 	fp.Write([]byte("echo(PHP_EOL);\r\n"))
 	debug.SetGCPercent(100)
 	runtime.GC()

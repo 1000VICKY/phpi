@@ -12,6 +12,7 @@ import (
  * @return int, error
  */
 func Echo() func(interface{}) (int, error) {
+
 	// クロージャを返却する
 	return func(i interface{}) (int, error) {
 		var s string
@@ -19,7 +20,7 @@ func Echo() func(interface{}) (int, error) {
 		// 引数に渡されたinterface{}の型アサーション
 		s, ok = i.(string)
 		if ok == true {
-			// 文字列をバイト列化
+			// 文字列型をバイト列化する
 			var buffer []byte = []byte(s)
 			var size *int = new(int)
 			var err error = nil
