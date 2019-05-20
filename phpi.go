@@ -48,10 +48,9 @@ func main() {
 	var environment string
 	flag.Parse()
 	paramList = flag.Args()
+	environment = "production"
 	if len(paramList) >= 1 {
 		environment = paramList[0]
-	} else {
-		environment = "production"
 	}
 
 	// 標準出力への書き出しをつかいecho関数を定義
