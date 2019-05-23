@@ -277,7 +277,10 @@ func main() {
 			multiple = 0
 			*input += " echo(PHP_EOL);\r\n "
 		} else {
-			//_, err = tempFunction(ff, tentativeFile, count, true)
+			if environment == "development" {
+				_, err = tempFunction(ff, tentativeFile, count, true, &mem, environment)
+			}
+
 			multiple = 1
 		}
 	}
