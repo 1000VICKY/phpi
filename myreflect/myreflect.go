@@ -1,7 +1,8 @@
 package myreflect
 
-import "errors"
-import "reflect"
+import (
+	"reflect"
+)
 
 /**
  * PHPのget_class_methodsを再現
@@ -28,6 +29,17 @@ func GetObjectMethods(s interface{}) ([]string, error) {
 	if len(methodList) > 0 {
 		return methodList, nil
 	} else {
-		return make([]string, 0), errors.New("対象のオブジェクトはメソッドを持っていません。")
+		var err *MyReflectError = new(MyReflectError)
+		err.ErrorMessage = "対象のオブジェクトはメソッドを持っていません。"
+		return make([]string, 0), err
 	}
+}
+
+// Errorメソッドを実装した構造体オブジェクト
+type MyReflectError struct {
+	ErrorMessage string
+}
+
+func (err *MyReflectError) Error() string {
+	return err.ErrorMessage
 }
