@@ -37,6 +37,7 @@ func Echo() func(interface{}) (int, error) {
 		} else {
 			// 型アサーションに失敗時
 			var echoError *EchoError = new(EchoError)
+			echoError.SetErrorMessage("Could not convert passed object to string.")
 			return 0, echoError
 		}
 	}
@@ -44,8 +45,16 @@ func Echo() func(interface{}) (int, error) {
 
 type EchoError struct {
 	// 空の実装EchoError 構造体
+	errorString string
 }
 
+// エラーメッセージのsetterメソッド
+func (err *EchoError) SetErrorMessage(message string) string {
+	err.errorString = message
+	return err.errorString
+}
+
+// errorインターフェースの実装
 func (echo *EchoError) Error() string {
 	return "[Failed to run type asserstion.]"
 }
