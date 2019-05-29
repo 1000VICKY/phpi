@@ -1,9 +1,12 @@
 // 表示入力を実行
 package standardInput
 
-import "os"
+import (
+	"fmt"
+	"os"
 
-import . "phpi/echo"
+	. "phpi/echo"
+)
 
 // 表示入力を実行する関数オブジェクトのみを保持する
 type StandardInput struct {
@@ -48,12 +51,16 @@ func (self *StandardInput) SetStandardInputFunction() {
 				break
 			}
 		}
+		fmt.Print("51")
+		print("<")
+		fmt.Print(*s)
+		print(">")
 		buffer = []byte(*s)
 		if buffer[len(buffer)-1] == byte('\n') {
-			buffer = buffer[:len(buffer)-1]
+			buffer = buffer[:len(buffer)]
 		}
 		if buffer[len(buffer)-1] == '\r' {
-			buffer = buffer[:len(buffer)-1]
+			buffer = buffer[:len(buffer)]
 		}
 		*s = string(buffer)
 		// *s = strings.Trim(*s, "\r\n")

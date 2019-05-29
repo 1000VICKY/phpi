@@ -1,4 +1,4 @@
-// +build darwin  -ldflags "-w -s"
+// +build linux  -ldflags "-w -s"
 
 package main
 
@@ -28,7 +28,7 @@ import (
 	_ "phpi/myreflect"
 
 	// syscallライブラリの代替ツール
-	_ "golang.org/x/sys/unix"
+	"golang.org/x/sys/unix"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -54,7 +54,7 @@ func main() {
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
 	////////////////////////////////////////////////////////////////////////
-	var command *exe.Cmd = exe.Command("where", "php")
+	var command *exe.Cmd = exe.Command("which", "php")
 	err = command.Run()
 	if err != nil {
 		_, _ = echo("Could not execute the command php!")
@@ -80,6 +80,7 @@ func main() {
 				echo(s)
 				os.Exit(255)
 			} else {
+				fmt.Println(i)
 				echo("Failed to run type assersion.")
 				echo("Need to able to convert `Error Object` to `String type`.")
 				os.Exit(255)
@@ -189,7 +190,7 @@ func main() {
 		// 標準入力開始
 		stdin(line)
 		temp = *line
-
+		fmt.Println(temp)
 		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)
 			if err != nil {
@@ -248,6 +249,7 @@ func main() {
 			continue
 		} else if temp == "" {
 			// 空文字エンターの場合はループを飛ばす
+			fmt.Println("break")
 			continue
 		}
 

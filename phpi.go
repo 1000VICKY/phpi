@@ -44,14 +44,9 @@ func main() {
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
 	////////////////////////////////////////////////////////////////////////
 	var err error
-	var paramList []string
-	var environment string
+	var environment *string
+	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
 	flag.Parse()
-	paramList = flag.Args()
-	environment = "production"
-	if len(paramList) >= 1 {
-		environment = paramList[0]
-	}
 
 	// 標準出力への書き出しをつかいecho関数を定義
 	var echo func(interface{}) (int, error) = Echo()
@@ -269,7 +264,7 @@ func main() {
 		if commonBool == true {
 			*line = ""
 			fixedInput = *input + "echo (PHP_EOL);"
-			count, err = tempFunction(ff, tentativeFile, count, false, &mem, environment)
+			count, err = tempFunction(ff, tentativeFile, count, false, &mem, *environment)
 			if err != nil {
 				echo(err.Error())
 				continue
@@ -277,8 +272,8 @@ func main() {
 			multiple = 0
 			*input += " echo(PHP_EOL);\r\n "
 		} else {
-			if environment == "development" {
-				_, err = tempFunction(ff, tentativeFile, count, true, &mem, environment)
+			if *environment == "development" {
+				_, err = tempFunction(ff, tentativeFile, count, true, &mem, *environment)
 			}
 
 			multiple = 1
