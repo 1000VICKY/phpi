@@ -2,7 +2,6 @@
 package standardInput
 
 import (
-	"fmt"
 	"os"
 
 	. "phpi/echo"
@@ -51,16 +50,29 @@ func (self *StandardInput) SetStandardInputFunction() {
 				break
 			}
 		}
-		fmt.Print("51")
-		print("<")
-		fmt.Print(*s)
-		print(">")
+		// スライス式
+		/*
+			var array []byte = []byte{
+				10,20,30,40,50,
+			}
+			上記の場合
+			fmt.Println(array[:len(array)]) => [10,20,30,40,50];
+			fmt.Println(array[:len(array)-1]) => [10,20,30,40];
+			fmt.Println(array[:2]) => [10,20];
+			fmt.Println(array[:1]) => [10];
+			上記のような結果を返却する
+		*/
+		//末尾の\r\nを取り除く
 		buffer = []byte(*s)
-		if buffer[len(buffer)-1] == byte('\n') {
-			buffer = buffer[:len(buffer)]
+		if len(buffer) > 0 {
+			if buffer[len(buffer)-1] == byte('\n') {
+				buffer = buffer[:len(buffer)-1]
+			}
 		}
-		if buffer[len(buffer)-1] == '\r' {
-			buffer = buffer[:len(buffer)]
+		if len(buffer) > 0 {
+			if buffer[len(buffer)-1] == '\r' {
+				buffer = buffer[:len(buffer)-1]
+			}
 		}
 		*s = string(buffer)
 		// *s = strings.Trim(*s, "\r\n")
