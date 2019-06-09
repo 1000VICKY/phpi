@@ -3,7 +3,7 @@ package goroutine
 
 import (
 	"os"
-	."phpi/echo"
+	. "phpi/echo"
 	"runtime"
 	"runtime/debug"
 	"syscall"
@@ -24,15 +24,16 @@ func (self *MyErrorJustThisProject) SetErrorMessage(s string) {
 func (self *MyErrorJustThisProject) Error() string {
 	return self.errorMessage
 }
+
 var echo func(interface{}) (int, error)
 
 func MonitoringSignal(sig chan os.Signal, exit chan int) {
-	echo = Echo();
+	echo = Echo()
 	var s os.Signal
 	for {
 		s, _ = <-sig
 		if s == syscall.SIGHUP {
-			echo("[syscall.SIGHUP]\r\n")
+			echo("[syscall.SIGHUP].\r\n")
 			// 割り込みを無視
 			exit <- 0
 		} else if s == syscall.SIGTERM {
@@ -61,8 +62,8 @@ func MonitoringSignal(sig chan os.Signal, exit chan int) {
 	}
 }
 
-func CrushingSignal(exit chan int) {
-	var echo = Echo();
+func CrushingSignal(exit chan int, notice *int) {
+	var echo = Echo()
 	var code int = 0
 	for {
 		code, _ = <-exit
@@ -70,7 +71,8 @@ func CrushingSignal(exit chan int) {
 			os.Exit(code)
 		} else {
 			if runtime.GOOS != "darwin" {
-				echo("[Ignored interrupt]")
+				*notice = -1
+				echo("[Ignored interrupt].\r\n")
 			}
 		}
 	}

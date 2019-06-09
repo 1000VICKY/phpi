@@ -117,12 +117,14 @@ func main() {
 		windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 	)
 
+	// command line へ通知するための変数
+	var notice *int = new(int)
 	// シグナルを取得後終了フラグとするチャンネル
 	var exit_chan chan int = make(chan int)
 	// シグナルを監視
 	go goroutine.MonitoringSignal(signal_chan, exit_chan)
 	// コンソールを停止するシグナルを握りつぶす
-	go goroutine.CrushingSignal(exit_chan)
+	go goroutine.CrushingSignal(exit_chan, notice)
 	// 平行でGCを実施
 	go goroutine.RunningFreeOSMemory()
 
@@ -179,17 +181,21 @@ func main() {
 
 	for {
 		if multiple == 1 {
-			// echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
 			echo("  .... ")
 		} else {
-			// echo("(" + strconv.Itoa(exitCode) + ")" + "php > ")
 			echo(" php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
-		stdin(line)
-		temp = *line
+		if *notice != -1 {
+			stdin(line)
+			temp = *line
+		} else {
+			*line = "clear"
+			temp = *line
+			*notice = 0
+		}
 
 		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)

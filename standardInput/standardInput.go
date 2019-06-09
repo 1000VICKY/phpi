@@ -41,7 +41,7 @@ func (self *StandardInput) SetStandardInputFunction() {
 			value, ok = err.(error)
 			// 型アサーションの検証結果
 			if ok == true && value != nil {
-				output("[" + value.Error() + "]")
+				output("[" + value.Error() + "]\r\n")
 				return false
 			}
 			*s += string(buffer[:writtenSize])
