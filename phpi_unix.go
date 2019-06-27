@@ -28,7 +28,7 @@ import (
 	_ "phpi/myreflect"
 
 	// syscallライブラリの代替ツール
-	_ "golang.org/x/sys/unix"
+	"golang.org/x/sys/unix"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -54,7 +54,7 @@ func main() {
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
 	////////////////////////////////////////////////////////////////////////
-	var command *exe.Cmd = exe.Command("where", "php")
+	var command *exe.Cmd = exe.Command("which", "php")
 	err = command.Run()
 	if err != nil {
 		_, _ = echo("Could not execute the command php!")
@@ -116,12 +116,14 @@ func main() {
 		unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 	)
 
+	// command line へ通知するための変数
+	var notice *int = new(int)
 	// シグナルを取得後終了フラグとするチャンネル
 	var exit_chan chan int = make(chan int)
 	// シグナルを監視
 	go goroutine.MonitoringSignal(signal_chan, exit_chan)
 	// コンソールを停止するシグナルを握りつぶす
-	go goroutine.CrushingSignal(exit_chan)
+	go goroutine.CrushingSignal(exit_chan, notice)
 	// 平行でGCを実施
 	go goroutine.RunningFreeOSMemory()
 
@@ -187,8 +189,11 @@ func main() {
 		*line = ""
 
 		// 標準入力開始
-		stdin(line)
-		temp = *line
+		if stdin(line) {
+			temp = *line
+		} else {
+			temp = "clear"
+		}
 
 		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)
