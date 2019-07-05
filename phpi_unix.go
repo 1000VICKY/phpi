@@ -29,6 +29,7 @@ import (
 
 	// syscallライブラリの代替ツール
 	"golang.org/x/sys/unix"
+	_ "golang.org/x/sys/unix"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -38,6 +39,7 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
 func main() {
+
 	////////////////////////////////////////////////////////////////////////
 	// コマンド実行時のコマンドライン引数を取得する
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
@@ -54,7 +56,13 @@ func main() {
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
 	////////////////////////////////////////////////////////////////////////
-	var command *exe.Cmd = exe.Command("which", "php")
+	var c string = ""
+	if runtime.GOOS == "windows" {
+		c = "where"
+	} else {
+		c = "which"
+	}
+	var command *exe.Cmd = exe.Command(c, "php")
 	err = command.Run()
 	if err != nil {
 		_, _ = echo("Could not execute the command php!")
@@ -180,19 +188,21 @@ func main() {
 
 	for {
 		if multiple == 1 {
-			// echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
 			echo("  .... ")
 		} else {
-			// echo("(" + strconv.Itoa(exitCode) + ")" + "php > ")
 			echo(" php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
-		if stdin(line) {
+		if *notice != -1 {
+			stdin(line)
 			temp = *line
 		} else {
-			temp = "clear"
+			echo("\r\n")
+			*line = "clear"
+			temp = *line
+			*notice = 0
 		}
 
 		if temp == "del" {

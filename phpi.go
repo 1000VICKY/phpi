@@ -192,6 +192,7 @@ func main() {
 			stdin(line)
 			temp = *line
 		} else {
+			echo("\r\n")
 			*line = "clear"
 			temp = *line
 			*notice = 0

@@ -35,29 +35,29 @@ func MonitoringSignal(sig chan os.Signal, exit chan int) {
 		if s == syscall.SIGHUP {
 			echo("[syscall.SIGHUP].\r\n")
 			// 割り込みを無視
-			exit <- 0
+			exit <- 1
 		} else if s == syscall.SIGTERM {
 			echo("[syscall.SIGTERM].\r\n")
-			exit <- 1
+			exit <- 2
 		} else if s == os.Kill {
 			echo("[os.Kill].\r\n")
 			// 割り込みを無視
-			exit <- 0
+			exit <- 3
 		} else if s == os.Interrupt {
 			if runtime.GOOS != "darwin" {
 				echo("[os.Interrupt].\r\n")
 			}
 			// 割り込みを無視
-			exit <- 0
+			exit <- 4
 		} else if s == syscall.Signal(0x14) {
 			if runtime.GOOS != "darwin" {
 				echo("[syscall.SIGTSTP].\r\n")
 			}
 			// 割り込みを無視
-			exit <- 0
+			exit <- 5
 		} else if s == syscall.SIGQUIT {
 			echo("[syscall.SIGQUIT].\r\n")
-			exit <- 1
+			exit <- 6
 		}
 	}
 }
@@ -67,8 +67,12 @@ func CrushingSignal(exit chan int, notice *int) {
 	var code int = 0
 	for {
 		code, _ = <-exit
+
 		if code == 1 {
 			os.Exit(code)
+		} else if code == 4 {
+			*notice = -1
+			echo("[Ignored interrupt].\r\n")
 		} else {
 			if runtime.GOOS != "darwin" {
 				*notice = -1
