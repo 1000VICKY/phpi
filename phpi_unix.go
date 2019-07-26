@@ -51,7 +51,7 @@ func main() {
 
 	//  readline 機能を追加
 	l, err := readline.NewEx(&readline.Config{
-		Prompt:      "\033[31m»\033[0m ",
+		Prompt:      "\033[31m php > \033[0m ",
 		HistoryFile: "/tmp/readline.tmp",
 		// AutoComplete: completer,
 		// InterruptPrompt:     "^C",
