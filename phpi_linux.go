@@ -1,4 +1,4 @@
-// +build linux  -ldflags "-w -s"
+// +build darwin  -ldflags "-w -s"
 
 package main
 
@@ -29,6 +29,7 @@ import (
 
 	// syscallライブラリの代替ツール
 	"golang.org/x/sys/unix"
+	_ "golang.org/x/sys/unix"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -38,6 +39,7 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
 func main() {
+
 	////////////////////////////////////////////////////////////////////////
 	// コマンド実行時のコマンドライン引数を取得する
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
@@ -49,12 +51,18 @@ func main() {
 
 	// 標準出力への書き出しをつかいecho関数を定義
 	var echo func(interface{}) (int, error) = Echo()
-
+	echo("Mac")
 	////////////////////////////////////////////////////////////////////////
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
 	////////////////////////////////////////////////////////////////////////
-	var command *exe.Cmd = exe.Command("which", "php")
+	var c string = ""
+	if runtime.GOOS == "windows" {
+		c = "where"
+	} else {
+		c = "which"
+	}
+	var command *exe.Cmd = exe.Command(c, "php")
 	err = command.Run()
 	if err != nil {
 		_, _ = echo("Could not execute the command php!")
@@ -80,7 +88,6 @@ func main() {
 				echo(s)
 				os.Exit(255)
 			} else {
-				fmt.Println(i)
 				echo("Failed to run type assersion.")
 				echo("Need to able to convert `Error Object` to `String type`.")
 				os.Exit(255)
@@ -117,12 +124,14 @@ func main() {
 		unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 	)
 
+	// command line へ通知するための変数
+	var notice *int = new(int)
 	// シグナルを取得後終了フラグとするチャンネル
 	var exit_chan chan int = make(chan int)
 	// シグナルを監視
 	go goroutine.MonitoringSignal(signal_chan, exit_chan)
 	// コンソールを停止するシグナルを握りつぶす
-	go goroutine.CrushingSignal(exit_chan)
+	go goroutine.CrushingSignal(exit_chan, notice)
 	// 平行でGCを実施
 	go goroutine.RunningFreeOSMemory()
 
@@ -179,18 +188,23 @@ func main() {
 
 	for {
 		if multiple == 1 {
-			// echo("(" + strconv.Itoa(exitCode) + ")" + " .... ")
 			echo("  .... ")
 		} else {
-			// echo("(" + strconv.Itoa(exitCode) + ")" + "php > ")
 			echo(" php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
-		stdin(line)
-		temp = *line
-		fmt.Println(temp)
+		if *notice != -1 {
+			stdin(line)
+			temp = *line
+		} else {
+			echo("\r\n")
+			*line = "clear"
+			temp = *line
+			*notice = 0
+		}
+
 		if temp == "del" {
 			ff, err = deleteFile(ff, initializer)
 			if err != nil {
@@ -249,7 +263,6 @@ func main() {
 			continue
 		} else if temp == "" {
 			// 空文字エンターの場合はループを飛ばす
-			fmt.Println("break")
 			continue
 		}
 

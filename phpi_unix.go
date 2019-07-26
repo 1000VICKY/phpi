@@ -30,6 +30,9 @@ import (
 	// syscallライブラリの代替ツール
 	"golang.org/x/sys/unix"
 	_ "golang.org/x/sys/unix"
+
+	// readline 機能
+	"github.com/chzyer/readline"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -45,13 +48,25 @@ func main() {
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
 	////////////////////////////////////////////////////////////////////////
 	var err error
+
+	//  readline 機能を追加
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:      "\033[31m»\033[0m ",
+		HistoryFile: "/tmp/readline.tmp",
+		// AutoComplete: completer,
+		// InterruptPrompt:     "^C",
+		EOFPrompt:         "exit",
+		HistorySearchFold: true,
+		// FuncFilterInputRune: filterInput,
+	})
+
 	var environment *string
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
 	flag.Parse()
 
 	// 標準出力への書き出しをつかいecho関数を定義
 	var echo func(interface{}) (int, error) = Echo()
-
+	echo("Mac")
 	////////////////////////////////////////////////////////////////////////
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
@@ -196,7 +211,8 @@ func main() {
 
 		// 標準入力開始
 		if *notice != -1 {
-			stdin(line)
+			// stdin(line)
+			*line, err = l.Readline()
 			temp = *line
 		} else {
 			echo("\r\n")
