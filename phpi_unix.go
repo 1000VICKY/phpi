@@ -49,17 +49,6 @@ func main() {
 	////////////////////////////////////////////////////////////////////////
 	var err error
 
-	//  readline 機能を追加
-	l, err := readline.NewEx(&readline.Config{
-		Prompt:      "\033[31m php > \033[0m ",
-		HistoryFile: "/tmp/readline.tmp",
-		// AutoComplete: completer,
-		// InterruptPrompt:     "^C",
-		EOFPrompt:         "exit",
-		HistorySearchFold: true,
-		// FuncFilterInputRune: filterInput,
-	})
-
 	var environment *string
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
 	flag.Parse()
@@ -110,7 +99,7 @@ func main() {
 		}
 	}()
 
-	var stdin (func(*string) bool)
+	// var stdin (func(*string) bool)
 	var standard *standardInput.StandardInput
 	// 汎用的なboolean型
 	var commonBool bool
@@ -120,7 +109,7 @@ func main() {
 	standard = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
 	standard.SetBufferSize(1024 * 2)
-	stdin = standard.GetStandardInputFunction()
+	// stdin = standard.GetStandardInputFunction()
 
 	// プロセスの監視
 	var signal_chan chan os.Signal = make(chan os.Signal)
@@ -201,18 +190,32 @@ func main() {
 	var exitCode int
 	var temp string
 
+	var prompt string = ""
 	for {
 		if multiple == 1 {
-			echo("  .... ")
+			prompt = " ...."
+			// echo("  .... ")
 		} else {
-			echo(" php > ")
+			prompt = " php > "
+			// echo(" php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
 		if *notice != -1 {
 			// stdin(line)
+			//  readline 機能を追加
+			l, _ := readline.NewEx(&readline.Config{
+				Prompt:      "\033[31m " + prompt + " \033[0m ",
+				HistoryFile: "/tmp/readline.tmp",
+				// AutoComplete: completer,
+				// InterruptPrompt:     "^C",
+				EOFPrompt:         "exit",
+				HistorySearchFold: true,
+				// FuncFilterInputRune: filterInput,
+			})
 			*line, err = l.Readline()
+			l.Close()
 			temp = *line
 		} else {
 			echo("\r\n")
@@ -260,7 +263,17 @@ func main() {
 			echo("[Would you really like to quit a console which you are running in terminal? Pushing Enter key or other]\r\n")
 			var quitText *string
 			quitText = new(string)
-			stdin(quitText)
+			// stdin(quitText)
+			l, _ := readline.NewEx(&readline.Config{
+				Prompt:      "\033[31m " + prompt + " \033[0m ",
+				HistoryFile: "/tmp/readline.tmp",
+				// AutoComplete: completer,
+				// InterruptPrompt:     "^C",
+				EOFPrompt:         "exit",
+				HistorySearchFold: true,
+				// FuncFilterInputRune: filterInput,
+			})
+			*quitText, _ = l.Readline()
 			if *quitText == "" {
 				ff.Close()
 				os.Remove(*tentativeFile)
