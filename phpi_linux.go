@@ -28,6 +28,8 @@ import (
 	_ "phpi/myreflect"
 
 	// syscallライブラリの代替ツール
+	"phpi/liner"
+
 	"golang.org/x/sys/unix"
 	_ "golang.org/x/sys/unix"
 )
@@ -38,7 +40,18 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"display_errors\", 1);\r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
+var (
+	history_fn = filepath.Join(os.TempDir(), ".liner_example_history")
+)
+
 func main() {
+
+	_readline := liner.NewLiner()
+	defer _readline.Close()
+	if f, err := os.Open(history_fn); err == nil {
+		_readline.ReadHistory(f)
+		f.Close()
+	}
 
 	////////////////////////////////////////////////////////////////////////
 	// コマンド実行時のコマンドライン引数を取得する
@@ -185,18 +198,19 @@ func main() {
 	fixedInput = *input
 	var exitCode int
 	var temp string
-
+	var prompt = ""
 	for {
 		if multiple == 1 {
-			echo("  .... ")
+			prompt = " ... "
 		} else {
-			echo(" php > ")
+			prompt = " php > "
 		}
 		*line = ""
 
 		// 標準入力開始
 		if *notice != -1 {
-			stdin(line)
+			*line, _ = _readline.Prompt(prompt)
+			// stdin(line)
 			temp = *line
 		} else {
 			echo("\r\n")
@@ -265,7 +279,8 @@ func main() {
 			// 空文字エンターの場合はループを飛ばす
 			continue
 		}
-
+		// 妥当な入力の場合のみ readlineの履歴に保存する
+		_readline.AppendHistory(*line)
 		*input += *line + "\n"
 
 		_, err = ff.WriteAt([]byte(*input), 0)
