@@ -30,6 +30,8 @@ import (
 	// syscallライブラリの代替ツール
 	_ "golang.org/x/sys/unix"
 	"golang.org/x/sys/windows"
+
+	"phpi/liner"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -38,8 +40,17 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"display_errors\", 1);\r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
-func main() {
+var (
+	history_fn = filepath.Join(os.TempDir(), ".liner_example_history")
+)
 
+func main() {
+	_readline := liner.NewLiner()
+	defer _readline.Close()
+	if f, err := os.Open(history_fn); err == nil {
+		_readline.ReadHistory(f)
+		f.Close()
+	}
 	////////////////////////////////////////////////////////////////////////
 	// コマンド実行時のコマンドライン引数を取得する
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
@@ -89,16 +100,20 @@ func main() {
 		}
 	}()
 
-	var stdin (func(*string) bool)
-	var standard *standardInput.StandardInput
 	// 汎用的なboolean型
 	var commonBool bool
 	// メモリ状態を検証
 	var mem runtime.MemStats
+	///////////////////////////////////////////////////
 	// 標準入力を取得するための関数オブジェクトを作成
+	///////////////////////////////////////////////////
+	var standard *standardInput.StandardInput
 	standard = new(standardInput.StandardInput)
 	standard.SetStandardInputFunction()
-	standard.SetBufferSize(1024 * 2)
+	var size *int = new(int)
+	*size = 3
+	standard.SetBufferSize(1024 * (*size))
+	var stdin (func(*string) bool)
 	stdin = standard.GetStandardInputFunction()
 
 	// プロセスの監視
@@ -129,13 +144,9 @@ func main() {
 	go goroutine.RunningFreeOSMemory()
 
 	// 利用変数初期化
-	var input *string
-	var line *string
-	input = new(string)
-	line = new(string)
-
-	var tentativeFile *string
-	tentativeFile = new(string)
+	var input *string = new(string)
+	var line *string = new(string)
+	var tentativeFile *string = new(string)
 
 	var writtenByte *int
 	writtenByte = new(int)
@@ -170,26 +181,26 @@ func main() {
 	var currentDir string
 
 	// saveコマンド入力用
-	var saveFp *os.File
-	saveFp = new(os.File)
+	var saveFp *os.File = new(os.File)
 
 	var fixedInput string
 	*input = initializer
 	fixedInput = *input
 	var exitCode int
 	var temp string
-
+	var prompt = ""
 	for {
 		if multiple == 1 {
-			echo("  .... ")
+			// 複数行入力中
+			prompt = " ... "
 		} else {
-			echo(" php > ")
+			prompt = " php > "
 		}
 		*line = ""
-
 		// 標準入力開始
 		if *notice != -1 {
-			stdin(line)
+			*line, _ = _readline.Prompt(prompt)
+			// stdin(line)
 			temp = *line
 		} else {
 			echo("\r\n")
@@ -258,7 +269,8 @@ func main() {
 			// 空文字エンターの場合はループを飛ばす
 			continue
 		}
-
+		// 妥当な入力の場合のみ readlineの履歴に保存する
+		_readline.AppendHistory(*line)
 		*input += *line + "\n"
 
 		_, err = ff.WriteAt([]byte(*input), 0)
