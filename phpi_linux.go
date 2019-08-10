@@ -1,5 +1,4 @@
-// +build darwin  -ldflags "-w -s"
-
+// +build unix  -ldflags "-w -s"
 package main
 
 import (
@@ -46,6 +45,15 @@ var (
 
 func main() {
 
+	// 汎用的errorオブジェクト
+	var err error
+	// 事前に本アプリケーションのプロセスIDを取得する
+	// アプリケーション停止時はこのプロセスIDをKillする
+	var pid *int = new(int)
+	var process *os.Process
+	*pid = os.Getpid()
+	process, _ = os.FindProcess(*pid)
+
 	_readline := liner.NewLiner()
 	defer _readline.Close()
 	if f, err := os.Open(history_fn); err == nil {
@@ -57,14 +65,12 @@ func main() {
 	// コマンド実行時のコマンドライン引数を取得する
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
 	////////////////////////////////////////////////////////////////////////
-	var err error
 	var environment *string
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
 	flag.Parse()
 
 	// 標準出力への書き出しをつかいecho関数を定義
 	var echo func(interface{}) (int, error) = Echo()
-	echo("Mac")
 	////////////////////////////////////////////////////////////////////////
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
@@ -80,12 +86,12 @@ func main() {
 	if err != nil {
 		_, _ = echo("Could not execute the command php!")
 		_, _ = echo(err)
-		os.Exit(255)
+		process.Kill()
 	} else {
 		var p *os.ProcessState = command.ProcessState
 		if p.Success() != true {
 			_, _ = echo("Could not execute the command php!")
-			os.Exit(255)
+			process.Kill()
 		}
 	}
 
@@ -99,11 +105,12 @@ func main() {
 			s, ok = i.(string)
 			if ok == true {
 				echo(s)
-				os.Exit(255)
+				panic(s)
+				process.Kill()
 			} else {
-				echo("Failed to run type assersion.")
-				echo("Need to able to convert `Error Object` to `String type`.")
-				os.Exit(255)
+				echo("Failed to run type assersion.Need to able to convert `Error Object` to `String type`.")
+				panic(s)
+				process.Kill()
 			}
 		}
 	}()
@@ -165,24 +172,24 @@ func main() {
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
 		echo(err.Error() + "\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 	ff.Chmod(os.ModePerm)
 	*writtenByte, err = ff.WriteAt([]byte(initializer), 0)
 	if err != nil {
 		echo(err.Error() + "\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 	// ファイルポインタに書き込まれたバイト数を検証する
 	if *writtenByte != len(initializer) {
 		echo("[Couldn't complete process to initialize script file.]\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 	// ファイルポインタオブジェクトから絶対パスを取得する
 	*tentativeFile, err = filepath.Abs(ff.Name())
 	if err != nil {
 		echo(err.Error() + "\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 
 	var count int
@@ -223,7 +230,7 @@ func main() {
 			ff, err = deleteFile(ff, initializer)
 			if err != nil {
 				echo(err.Error() + "\r\n")
-				os.Exit(255)
+				process.Kill()
 			}
 			*line = ""
 			*input = initializer
@@ -245,7 +252,7 @@ func main() {
 			if err != nil {
 				saveFp.Close()
 				echo(err.Error() + "\r\n")
-				os.Exit(255)
+				process.Kill()
 			}
 			echo("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n")
 			saveFp.Close()
@@ -253,7 +260,7 @@ func main() {
 			multiple = 0
 			exitCode = 0
 			continue
-		} else if temp == "exit" {
+		} else if temp == "exit" || temp == "quit" {
 			// コンソールを終了させる
 			echo("[Would you really like to quit a console which you are running in terminal? Pushing Enter key or other]\r\n")
 			var quitText *string
@@ -262,7 +269,8 @@ func main() {
 			if *quitText == "" {
 				ff.Close()
 				os.Remove(*tentativeFile)
-				os.Exit(0)
+				// プロセスをKillしてアプリケーションを停止
+				process.Kill()
 			} else {
 				echo("[Canceled to quit this console app in terminal.]\r\n")
 			}
