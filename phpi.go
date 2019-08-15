@@ -206,6 +206,7 @@ func main() {
 	var temp string
 	var prompt = ""
 	for {
+
 		if multiple == 1 {
 			prompt = " ... "
 		} else {

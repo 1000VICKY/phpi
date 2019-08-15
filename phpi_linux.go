@@ -17,6 +17,7 @@ import (
 	_ "regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	_ "strings"
 	"syscall"
 	_ "time"
@@ -45,6 +46,9 @@ var (
 
 func main() {
 
+	// 標準出力への書き出しをつかいecho関数を定義
+	var echo func(interface{}) (int, error) = Echo()
+
 	// 汎用的errorオブジェクト
 	var err error
 	// 事前に本アプリケーションのプロセスIDを取得する
@@ -52,6 +56,7 @@ func main() {
 	var pid *int = new(int)
 	var process *os.Process
 	*pid = os.Getpid()
+	echo("Current PID " + strconv.Itoa(*pid))
 	process, _ = os.FindProcess(*pid)
 
 	_readline := liner.NewLiner()
@@ -69,8 +74,6 @@ func main() {
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
 	flag.Parse()
 
-	// 標準出力への書き出しをつかいecho関数を定義
-	var echo func(interface{}) (int, error) = Echo()
 	////////////////////////////////////////////////////////////////////////
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
@@ -207,6 +210,7 @@ func main() {
 	var temp string
 	var prompt = ""
 	for {
+
 		if multiple == 1 {
 			prompt = " ... "
 		} else {
