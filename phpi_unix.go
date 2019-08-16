@@ -1,5 +1,4 @@
-// +build darwin  -ldflags "-w -s"
-
+// +build unix  -ldflags "-w -s"
 package main
 
 import (
@@ -18,6 +17,7 @@ import (
 	_ "regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	_ "strings"
 	"syscall"
 	_ "time"
@@ -28,11 +28,10 @@ import (
 	_ "phpi/myreflect"
 
 	// syscallライブラリの代替ツール
+	"phpi/liner"
+
 	"golang.org/x/sys/unix"
 	_ "golang.org/x/sys/unix"
-
-	// readline 機能
-	"github.com/chzyer/readline"
 )
 
 // 実行するPHPスクリプトの初期化
@@ -41,21 +40,46 @@ const initializer = "<?php \r\n" +
 	"ini_set(\"display_errors\", 1);\r\n" +
 	"ini_set(\"error_reporting\", -1);\r\n"
 
+var (
+	history_fn = filepath.Join(os.TempDir(), ".liner_example_history")
+)
+
 func main() {
+
+	// 標準出力への書き出しをつかいecho関数を定義
+	var echo func(interface{}) (int, error) = Echo()
+
+	// 汎用的errorオブジェクト
+	var err error
+	/////////////////////////////////////////////////////////
+	// 事前に本アプリケーションのプロセスIDを取得する
+	// アプリケーション停止時はこの自身のプロセスIDをKillする
+	/////////////////////////////////////////////////////////
+	var pid *int = new(int)
+	var process *os.Process
+	*pid = os.Getpid()
+	echo("[Pid]: " + strconv.Itoa(*pid) + "\r\n");
+	process, err = os.FindProcess(*pid)
+	if (err != nil) {
+		echo (err);
+		// os.Exit()をするとdocker内での正常終了ができないため
+		process.Kill();
+	}
+	_readline := liner.NewLiner()
+	defer _readline.Close()
+	if f, err := os.Open(history_fn); err == nil {
+		_readline.ReadHistory(f)
+		f.Close()
+	}
 
 	////////////////////////////////////////////////////////////////////////
 	// コマンド実行時のコマンドライン引数を取得する
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
 	////////////////////////////////////////////////////////////////////////
-	var err error
-
 	var environment *string
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
 	flag.Parse()
 
-	// 標準出力への書き出しをつかいecho関数を定義
-	var echo func(interface{}) (int, error) = Echo()
-	echo("Mac")
 	////////////////////////////////////////////////////////////////////////
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
@@ -71,12 +95,12 @@ func main() {
 	if err != nil {
 		_, _ = echo("Could not execute the command php!")
 		_, _ = echo(err)
-		os.Exit(255)
+		process.Kill()
 	} else {
 		var p *os.ProcessState = command.ProcessState
 		if p.Success() != true {
 			_, _ = echo("Could not execute the command php!")
-			os.Exit(255)
+			process.Kill()
 		}
 	}
 
@@ -90,12 +114,12 @@ func main() {
 			s, ok = i.(string)
 			if ok == true {
 				echo(s)
-				os.Exit(255)
-			} else {
-				echo("Failed to run type assersion.")
-				echo("Need to able to convert `Error Object` to `String type`.")
 				panic(s)
-				os.Exit(255)
+				process.Kill()
+			} else {
+				echo("Failed to run type assersion.Need to able to convert `Error Object` to `String type`.")
+				panic(s)
+				process.Kill()
 			}
 		}
 	}()
@@ -157,24 +181,24 @@ func main() {
 	ff, err = ioutil.TempFile("", "__php__main__")
 	if err != nil {
 		echo(err.Error() + "\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 	ff.Chmod(os.ModePerm)
 	*writtenByte, err = ff.WriteAt([]byte(initializer), 0)
 	if err != nil {
 		echo(err.Error() + "\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 	// ファイルポインタに書き込まれたバイト数を検証する
 	if *writtenByte != len(initializer) {
 		echo("[Couldn't complete process to initialize script file.]\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 	// ファイルポインタオブジェクトから絶対パスを取得する
 	*tentativeFile, err = filepath.Abs(ff.Name())
 	if err != nil {
 		echo(err.Error() + "\r\n")
-		os.Exit(255)
+		process.Kill()
 	}
 
 	var count int
@@ -190,35 +214,24 @@ func main() {
 	fixedInput = *input
 	var exitCode int
 	var temp string
-
-	var prompt string = ""
+	var prompt = ""
 	for {
+
 		if multiple == 1 {
-			prompt = " ...."
-			// echo("  .... ")
+			prompt = " ... "
 		} else {
 			prompt = " php > "
-			// echo(" php > ")
 		}
 		*line = ""
 
 		// 標準入力開始
 		if *notice != -1 {
-			stdin(line)
-			//  readline 機能を追加
-			// l, _ := readline.NewEx(&readline.Config{
-			// 	Prompt:      "\033[31m " + prompt + " \033[0m ",
-			// 	HistoryFile: "/tmp/readline.tmp",
-			// 	// AutoComplete: completer,
-			// 	// InterruptPrompt:     "^C",
-			// 	EOFPrompt:         "exit",
-			// 	HistorySearchFold: true,
-			// 	// FuncFilterInputRune: filterInput,
-			// })
-
-			// _, err = l.Readline()
-			// fmt.Println(err)
-			// l.Close()
+			*line, err = _readline.Prompt(prompt)
+			if (err != nil) {
+				echo (err);
+				process.Kill();
+			}
+			// stdin(line)
 			temp = *line
 		} else {
 			echo("\r\n")
@@ -231,7 +244,7 @@ func main() {
 			ff, err = deleteFile(ff, initializer)
 			if err != nil {
 				echo(err.Error() + "\r\n")
-				os.Exit(255)
+				process.Kill()
 			}
 			*line = ""
 			*input = initializer
@@ -253,7 +266,7 @@ func main() {
 			if err != nil {
 				saveFp.Close()
 				echo(err.Error() + "\r\n")
-				os.Exit(255)
+				process.Kill()
 			}
 			echo("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n")
 			saveFp.Close()
@@ -261,26 +274,16 @@ func main() {
 			multiple = 0
 			exitCode = 0
 			continue
-		} else if temp == "exit" {
+		} else if temp == "exit" || temp == "quit" {
 			// コンソールを終了させる
 			echo("[Would you really like to quit a console which you are running in terminal? Pushing Enter key or other]\r\n")
-			var quitText *string
-			quitText = new(string)
-			// stdin(quitText)
-			l, _ := readline.NewEx(&readline.Config{
-				Prompt:      "\033[31m " + prompt + " \033[0m ",
-				HistoryFile: "/tmp/readline.tmp",
-				// AutoComplete: completer,
-				// InterruptPrompt:     "^C",
-				EOFPrompt:         "exit",
-				HistorySearchFold: true,
-				// FuncFilterInputRune: filterInput,
-			})
-			*quitText, _ = l.Readline()
+			var quitText *string = new(string)
+			stdin(quitText)
 			if *quitText == "" {
 				ff.Close()
 				os.Remove(*tentativeFile)
-				os.Exit(0)
+				// プロセスをKillしてアプリケーションを停止
+				process.Kill()
 			} else {
 				echo("[Canceled to quit this console app in terminal.]\r\n")
 			}
@@ -297,7 +300,8 @@ func main() {
 			// 空文字エンターの場合はループを飛ばす
 			continue
 		}
-
+		// 妥当な入力の場合のみ readlineの履歴に保存する
+		_readline.AppendHistory(*line)
 		*input += *line + "\n"
 
 		_, err = ff.WriteAt([]byte(*input), 0)
@@ -344,9 +348,15 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 	var command *exe.Cmd
 	var waitStatus syscall.WaitStatus
 	var ok bool
+	var pid *int = new (int);
+	// 標準出力への書き出しをつかいecho関数を定義
+	var echo func(interface{}) (int, error) = Echo()
 	// バックグラウンドでPHPをコマンドラインで実行
 	command = exe.Command("php", *filePath)
 	command.Run()
+	*pid = command.Process.Pid;
+	// 実行したコマンドのプロセスID
+	echo ("[Pid]: " + strconv.Itoa(*pid) + "\r\n");
 	// command.ProcessState.Sys()は interface{}を返却する
 	waitStatus, ok = command.ProcessState.Sys().(syscall.WaitStatus)
 	// 型アサーション成功時
@@ -369,12 +379,14 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	var ii int
 	var scanText *string = new(string)
 	var code bool
-
+	var pid *int = new (int);
 	var echo func(interface{}) (int, error) = Echo()
 	if errorCheck == true {
 		command = exe.Command("php", *filePath)
 		// バックグラウンドでPHPをコマンドラインで実行
 		e = command.Run()
+		*pid = command.Process.Pid;
+		echo ("[Pid]: " + strconv.Itoa(*pid) + "\r\n");
 		// バックグランドでの実行が失敗の場合
 		if e != nil {
 			// 実行したスクリプトの終了コードを取得
