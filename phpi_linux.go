@@ -1,4 +1,4 @@
-// +build unix  -ldflags "-w -s"
+// +build linux  -ldflags "-w -s"
 package main
 
 import (
@@ -51,14 +51,21 @@ func main() {
 
 	// 汎用的errorオブジェクト
 	var err error
+	/////////////////////////////////////////////////////////
 	// 事前に本アプリケーションのプロセスIDを取得する
-	// アプリケーション停止時はこのプロセスIDをKillする
-	var pid *int = new(int)
+	// アプリケーション停止時はこの自身のプロセスIDをKillする
+	/////////////////////////////////////////////////////////
+	var pid *int
+	pid = new(int)
 	var process *os.Process
 	*pid = os.Getpid()
-	echo("Current PID " + strconv.Itoa(*pid))
-	process, _ = os.FindProcess(*pid)
-
+	echo("[Pid]: " + strconv.Itoa(*pid) + "\r\n")
+	process, err = os.FindProcess(*pid)
+	if err != nil {
+		echo(err)
+		// os.Exit()をするとdocker内での正常終了ができないため
+		process.Kill()
+	}
 	_readline := liner.NewLiner()
 	defer _readline.Close()
 	if f, err := os.Open(history_fn); err == nil {
@@ -78,11 +85,11 @@ func main() {
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
 	////////////////////////////////////////////////////////////////////////
-	var c string = ""
+	var c string
+	c = "which"
 	if runtime.GOOS == "windows" {
+		// windowsの場合のみコマンドを変更
 		c = "where"
-	} else {
-		c = "which"
 	}
 	var command *exe.Cmd = exe.Command(c, "php")
 	err = command.Run()
@@ -220,7 +227,11 @@ func main() {
 
 		// 標準入力開始
 		if *notice != -1 {
-			*line, _ = _readline.Prompt(prompt)
+			*line, err = _readline.Prompt(prompt)
+			if err != nil {
+				echo(err)
+				process.Kill()
+			}
 			// stdin(line)
 			temp = *line
 		} else {
@@ -267,8 +278,7 @@ func main() {
 		} else if temp == "exit" || temp == "quit" {
 			// コンソールを終了させる
 			echo("[Would you really like to quit a console which you are running in terminal? Pushing Enter key or other]\r\n")
-			var quitText *string
-			quitText = new(string)
+			var quitText *string = new(string)
 			stdin(quitText)
 			if *quitText == "" {
 				ff.Close()
@@ -339,9 +349,15 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 	var command *exe.Cmd
 	var waitStatus syscall.WaitStatus
 	var ok bool
+	var pid *int = new(int)
+	// 標準出力への書き出しをつかいecho関数を定義
+	var echo func(interface{}) (int, error) = Echo()
 	// バックグラウンドでPHPをコマンドラインで実行
 	command = exe.Command("php", *filePath)
 	command.Run()
+	*pid = command.Process.Pid
+	// 実行したコマンドのプロセスID
+	echo("[Pid]: " + strconv.Itoa(*pid) + "\r\n")
 	// command.ProcessState.Sys()は interface{}を返却する
 	waitStatus, ok = command.ProcessState.Sys().(syscall.WaitStatus)
 	// 型アサーション成功時
@@ -364,12 +380,14 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	var ii int
 	var scanText *string = new(string)
 	var code bool
-
+	var pid *int = new(int)
 	var echo func(interface{}) (int, error) = Echo()
 	if errorCheck == true {
 		command = exe.Command("php", *filePath)
 		// バックグラウンドでPHPをコマンドラインで実行
 		e = command.Run()
+		*pid = command.Process.Pid
+		echo("[Pid]: " + strconv.Itoa(*pid) + "\r\n")
 		// バックグランドでの実行が失敗の場合
 		if e != nil {
 			// 実行したスクリプトの終了コードを取得
