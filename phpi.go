@@ -222,7 +222,7 @@ func main() {
 		} else {
 			prompt = " php > "
 		}
-		*line = ""
+		line = new(string);
 
 		// 標準入力開始
 		if *notice != -1 {
@@ -246,7 +246,7 @@ func main() {
 				echo(err.Error() + "\r\n")
 				process.Kill()
 			}
-			*line = ""
+			line = nil
 			*input = initializer
 			fixedInput = *input
 			count = 0
@@ -270,7 +270,7 @@ func main() {
 			}
 			echo("[" + currentDir + ":Completed saving input code which you wrote.]" + "\r\n")
 			saveFp.Close()
-			*line = ""
+			line = nil
 			multiple = 0
 			exitCode = 0
 			continue
@@ -287,7 +287,7 @@ func main() {
 			} else {
 				echo("[Canceled to quit this console app in terminal.]\r\n")
 			}
-			*line = ""
+			line = nil
 			continue
 		} else if temp == "restore" || temp == "clear" {
 			*input = fixedInput
@@ -313,7 +313,7 @@ func main() {
 
 		commonBool, err = SyntaxCheckUsingWaitGroup(tentativeFile, &exitCode)
 		if commonBool == true {
-			*line = ""
+			line = nil
 			fixedInput = *input + "echo (PHP_EOL);"
 			count, err = tempFunction(ff, tentativeFile, count, false, &mem, *environment)
 			if err != nil {
@@ -360,6 +360,7 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 	// command.ProcessState.Sys()は interface{}を返却する
 	waitStatus, ok = command.ProcessState.Sys().(syscall.WaitStatus)
 	// 型アサーション成功時
+    pid = nil;
 	if ok == true {
 		*exitedStatus = waitStatus.ExitStatus()
 		var ps *os.ProcessState
@@ -368,6 +369,7 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 			// コマンド成功時
 			return true, nil
 		}
+        return false, e;
 	}
 	return false, e
 }
@@ -392,7 +394,6 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 			// 実行したスクリプトの終了コードを取得
 			code = command.ProcessState.Success()
 			if code != true {
-				*scanText = ""
 				command = exe.Command("php", *filePath)
 				stdout, _ := command.StdoutPipe()
 				command.Start()
@@ -421,7 +422,8 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 				}
 				command.Wait()
 				echo("\r\n")
-				command = nil
+                scanText = nil;
+				command = nil;
 				stdout = nil
 				return beforeOffset, e
 			}
@@ -451,12 +453,12 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 		} else {
 			break
 		}
-		*scanText = ""
+		*scanText = "";
 	}
 	command.Wait()
 	command = nil
 	stdout = nil
-	*scanText = ""
+	scanText = nil
 	echo("\r\n")
 	if environment == "development" {
 		// 使用したメモリログを出力
