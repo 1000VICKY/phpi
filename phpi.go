@@ -30,20 +30,22 @@ import (
 	// syscallライブラリの代替ツール
 	"phpi/liner"
 
-	_ "golang.org/x/sys/unix"
-	"golang.org/x/sys/windows"
+	 "golang.org/x/sys/unix"
+	_ "golang.org/x/sys/windows"
 )
 
 // 実行するPHPスクリプトの初期化
 // バックティックでヒアドキュメント
-const initializer = "<?php \r\n" +
-	"ini_set(\"display_errors\", 1);\r\n" +
-	"ini_set(\"error_reporting\", -1);\r\n"
+// const initializer = "<?php \r\n" +
+// 	"ini_set(\"display_errors\", 1);\r\n" +
+// 	"ini_set(\"error_reporting\", -1);\r\n"
 
+const initializer = "";
 var (
 	history_fn = filepath.Join(os.TempDir(), ".liner_example_history")
 )
 
+var __command__ string = "ruby"
 func main() {
 
 	// 標準出力への書き出しをつかいecho関数を定義
@@ -91,16 +93,16 @@ func main() {
 		// windowsの場合のみコマンドを変更
 		c = "where"
 	}
-	var command *exe.Cmd = exe.Command(c, "php")
+	var command *exe.Cmd = exe.Command(c, __command__)
 	err = command.Run()
 	if err != nil {
-		_, _ = echo("Could not execute the command php!")
+		_, _ = echo("Could not execute the command" + __command__  + "!")
 		_, _ = echo(err)
 		process.Kill()
 	} else {
 		var p *os.ProcessState = command.ProcessState
 		if p.Success() != true {
-			_, _ = echo("Could not execute the command php!")
+			_, _ = echo("Could not execute the command" + __command__  + "!")
 			process.Kill()
 		}
 	}
@@ -144,13 +146,24 @@ func main() {
 		signal_chan,
 		os.Interrupt,
 		os.Kill,
-		windows.SIGKILL,
-		windows.SIGHUP,
-		windows.SIGINT,
-		windows.SIGTERM,
-		windows.SIGQUIT,
-		windows.Signal(0x13),
-		windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		unix.SIGKILL,
+		unix.SIGHUP,
+		unix.SIGINT,
+		unix.SIGTERM,
+		unix.SIGQUIT,
+		unix.SIGTSTP,
+		unix.Signal(0x13),
+		unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		// signal_chan,
+		// os.Interrupt,
+		// os.Kill,
+		// windows.SIGKILL,
+		// windows.SIGHUP,
+		// windows.SIGINT,
+		// windows.SIGTERM,
+		// windows.SIGQUIT,
+		// windows.Signal(0x13),
+		// windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 	)
 
 	// command line へ通知するための変数
@@ -220,7 +233,7 @@ func main() {
 		if multiple == 1 {
 			prompt = " ... "
 		} else {
-			prompt = " php > "
+			prompt = " " + __command__ + " > "
 		}
 		line = new(string);
 
@@ -314,14 +327,14 @@ func main() {
 		commonBool, err = SyntaxCheckUsingWaitGroup(tentativeFile, &exitCode)
 		if commonBool == true {
 			line = nil
-			fixedInput = *input + "echo (PHP_EOL);"
+			fixedInput = *input + " print('\r\n');"
 			count, err = tempFunction(ff, tentativeFile, count, false, &mem, *environment)
 			if err != nil {
 				echo(err.Error())
 				continue
 			}
 			multiple = 0
-			*input += " echo(PHP_EOL);\r\n "
+			*input += " print('\r\n');\r\n "
 		} else {
 			if *environment == "development" {
 				_, err = tempFunction(ff, tentativeFile, count, true, &mem, *environment)
@@ -352,7 +365,7 @@ func SyntaxCheckUsingWaitGroup(filePath *string, exitedStatus *int) (bool, error
 	// 標準出力への書き出しをつかいecho関数を定義
 	var echo func(interface{}) (int, error) = Echo()
 	// バックグラウンドでPHPをコマンドラインで実行
-	command = exe.Command("php", *filePath)
+	command = exe.Command(__command__, *filePath)
 	command.Run()
 	*pid = command.Process.Pid
 	// 実行したコマンドのプロセスID
@@ -384,7 +397,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 	var pid *int = new(int)
 	var echo func(interface{}) (int, error) = Echo()
 	if errorCheck == true {
-		command = exe.Command("php", *filePath)
+		command = exe.Command(__command__, *filePath)
 		// バックグラウンドでPHPをコマンドラインで実行
 		e = command.Run()
 		*pid = command.Process.Pid
@@ -394,7 +407,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 			// 実行したスクリプトの終了コードを取得
 			code = command.ProcessState.Success()
 			if code != true {
-				command = exe.Command("php", *filePath)
+				command = exe.Command(__command__, *filePath)
 				stdout, _ := command.StdoutPipe()
 				command.Start()
 				scanner := bufio.NewScanner(stdout)
@@ -430,7 +443,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 		}
 	}
 	// Run()メソッドで利用したcommandオブジェクトを再利用
-	command = exe.Command("php", *filePath)
+	command = exe.Command(__command__, *filePath)
 	stdout, e = command.StdoutPipe()
 	if e != nil {
 		echo(e.Error() + "\r\n")
@@ -472,7 +485,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 			mem.HeapReleased, // OSへ返却されたヒープ
 		)
 	}
-	fp.Write([]byte("echo(PHP_EOL);\r\n"))
+	fp.Write([]byte("print('\r\n');\r\n"))
 	debug.SetGCPercent(100)
 	runtime.GC()
 	debug.FreeOSMemory()
