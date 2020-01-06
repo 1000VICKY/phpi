@@ -34,13 +34,6 @@ import (
 	_ "golang.org/x/sys/windows"
 )
 
-// 実行するPHPスクリプトの初期化
-// バックティックでヒアドキュメント
-// const initializer = "<?php \r\n" +
-// 	"ini_set(\"display_errors\", 1);\r\n" +
-// 	"ini_set(\"error_reporting\", -1);\r\n"
-
-const initializer = "";
 var (
 	history_fn = filepath.Join(os.TempDir(), ".liner_example_history")
 )
@@ -79,10 +72,21 @@ func main() {
 	// コマンド実行時のコマンドライン引数を取得する
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
 	////////////////////////////////////////////////////////////////////////
-	var environment *string
+	var environment *string = nil;
+	var lang *string = nil
+	// 実行環境を取得
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
+	lang = flag.String("lang" , "php", "Need to input language to execute this app.")
 	flag.Parse()
+	__command__ = *lang;
 
+	// 実行するPHPスクリプトの初期化を行う　※バックティックでヒアドキュメント
+	var initializer = "";
+	if (__command__ == "php") {
+		initializer = "<?php \r\n" +
+		"ini_set(\"display_errors\", 1);\r\n" +
+		"ini_set(\"error_reporting\", -1);\r\n"
+	}
 	////////////////////////////////////////////////////////////////////////
 	// phpコマンドが実行可能かどうかを検証
 	// 今回の場合 PHPコマンドがコマンドラインから利用できるかどうかを検証する
@@ -143,27 +147,27 @@ func main() {
 	var signal_chan chan os.Signal = make(chan os.Signal)
 	// OSによってシグナルのパッケージを変更
 	signal.Notify(
-		// signal_chan,
-		// os.Interrupt,
-		// os.Kill,
-		// unix.SIGKILL,
-		// unix.SIGHUP,
-		// unix.SIGINT,
-		// unix.SIGTERM,
-		// unix.SIGQUIT,
-		// unix.SIGTSTP,
-		// unix.Signal(0x13),
-		// unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 		signal_chan,
 		os.Interrupt,
 		os.Kill,
-		windows.SIGKILL,
-		windows.SIGHUP,
-		windows.SIGINT,
-		windows.SIGTERM,
-		windows.SIGQUIT,
-		windows.Signal(0x13),
-		windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		unix.SIGKILL,
+		unix.SIGHUP,
+		unix.SIGINT,
+		unix.SIGTERM,
+		unix.SIGQUIT,
+		unix.SIGTSTP,
+		unix.Signal(0x13),
+		unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		// signal_chan,
+		// os.Interrupt,
+		// os.Kill,
+		// windows.SIGKILL,
+		// windows.SIGHUP,
+		// windows.SIGINT,
+		// windows.SIGTERM,
+		// windows.SIGQUIT,
+		// windows.Signal(0x13),
+		// windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 	)
 
 	// command line へ通知するための変数
