@@ -30,8 +30,8 @@ import (
 	// syscallライブラリの代替ツール
 	"phpi/liner"
 
-	 "golang.org/x/sys/unix"
-	_ "golang.org/x/sys/windows"
+	_ "golang.org/x/sys/unix"
+	"golang.org/x/sys/windows"
 )
 
 var (
@@ -73,10 +73,11 @@ func main() {
 	// $ phpi development とした場合、メモリのデバッグ情報を出力させる
 	////////////////////////////////////////////////////////////////////////
 	var environment *string = nil;
-	var lang *string = nil
+	var lang *string = nil;
+
 	// 実行環境を取得
 	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
-	lang = flag.String("lang" , "php", "Need to input language to execute this app.")
+	lang = flag.String("lang" , "", "Need to input language to execute this app.")
 	flag.Parse()
 	__command__ = *lang;
 
@@ -100,7 +101,7 @@ func main() {
 	var command *exe.Cmd = exe.Command(c, __command__)
 	err = command.Run()
 	if err != nil {
-		_, _ = echo("Could not execute the command" + __command__  + "!")
+		_, _ = echo("Could not execute the command" + " " +  __command__  +  " " + "!")
 		_, _ = echo(err)
 		process.Kill()
 	} else {
@@ -147,27 +148,27 @@ func main() {
 	var signal_chan chan os.Signal = make(chan os.Signal)
 	// OSによってシグナルのパッケージを変更
 	signal.Notify(
-		signal_chan,
-		os.Interrupt,
-		os.Kill,
-		unix.SIGKILL,
-		unix.SIGHUP,
-		unix.SIGINT,
-		unix.SIGTERM,
-		unix.SIGQUIT,
-		unix.SIGTSTP,
-		unix.Signal(0x13),
-		unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 		// signal_chan,
 		// os.Interrupt,
 		// os.Kill,
-		// windows.SIGKILL,
-		// windows.SIGHUP,
-		// windows.SIGINT,
-		// windows.SIGTERM,
-		// windows.SIGQUIT,
-		// windows.Signal(0x13),
-		// windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		// unix.SIGKILL,
+		// unix.SIGHUP,
+		// unix.SIGINT,
+		// unix.SIGTERM,
+		// unix.SIGQUIT,
+		// unix.SIGTSTP,
+		// unix.Signal(0x13),
+		// unix.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
+		signal_chan,
+		os.Interrupt,
+		os.Kill,
+		windows.SIGKILL,
+		windows.SIGHUP,
+		windows.SIGINT,
+		windows.SIGTERM,
+		windows.SIGQUIT,
+		windows.Signal(0x13),
+		windows.Signal(0x14), // Windowsの場合 SIGTSTPを認識しないためリテラルで指定する
 	)
 
 	// command line へ通知するための変数
