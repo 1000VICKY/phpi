@@ -76,7 +76,7 @@ func main() {
 	var lang *string = nil;
 
 	// 実行環境を取得
-	environment = flag.String("e", "develoment", "Need to input environment to execute this app.")
+	environment = flag.String("e", "development", "Need to input environment to execute this app.")
 	lang = flag.String("lang" , "", "Need to input language to execute this app.")
 	flag.Parse()
 	__command__ = *lang;
@@ -413,7 +413,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 			code = command.ProcessState.Success()
 			if code != true {
 				command = exe.Command(__command__, *filePath)
-				stdout, _ := command.StdoutPipe()
+				stdout, _ := command.StderrPipe ();
 				command.Start()
 				scanner := bufio.NewScanner(stdout)
 				ii = 0
@@ -428,7 +428,7 @@ func tempFunction(fp *os.File, filePath *string, beforeOffset int, errorCheck bo
 				}
 				if beforeOffset > ii {
 					command = exe.Command(__command__, *filePath)
-					stdout, _ := command.StdoutPipe()
+					stdout, _ := command.StderrPipe ();
 					command.Start()
 					scanner = bufio.NewScanner(stdout)
 					for scanner.Scan() {
